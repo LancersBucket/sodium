@@ -1,6 +1,6 @@
 """Module Imports"""
-from datetime import timedelta
 import asyncio
+from datetime import timedelta
 import dearpygui.dearpygui as dpg
 from ffmpeg import Progress
 from ffmpeg.asyncio import FFmpeg
