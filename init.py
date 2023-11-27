@@ -1,9 +1,9 @@
-import os, sys, asyncio
 import dearpygui.dearpygui as dpg
-from mutagen.mp3 import MP3
-from datetime import timedelta
-from ffmpeg import Progress
 from ffmpeg.asyncio import FFmpeg
+from datetime import timedelta
+from mutagen.mp3 import MP3
+from ffmpeg import Progress
+import asyncio
 
 tag = 0
 numComplete = 0
@@ -98,7 +98,7 @@ def runCut():
         segtag = dpg.get_item_alias(segment)
         dpg.configure_item(segtag+"colLab",color=(255,0,0,255))
         if (dpg.get_item_label(segtag+"Butt") == "Disabled"):
-            dpg.configure_item(segtag+"colLab",color=(124,124,124,255))
+            dpg.configure_item(segtag+"colLab",color=(150,150,150,255))
             continue
         asyncio.run(ffmpegCut(FD.filePath,outname=dpg.get_value(segtag+"Lab"),caller=segtag, start=dpg.get_value(segtag+"Start"),end=dpg.get_value(segtag+"End")))
     dpg.configure_item("runStatus",color=(0,255,0,255))
@@ -118,7 +118,7 @@ def fileSelect(sender, app_data):
     FD.filelengthS = audio.info.length
     FD.timecodeLength = FD.calcTimecode(FD.filelengthS)
     dpg.set_value("stat", "Currently loaded file: " + FD.file)
-    dpg.set_value('filelen',"File length: " + FD.timecodeLength + " (" + str(FD.filelengthS)+")")
+    dpg.set_value('filelen',"File length: " + FD.timecodeLength + " (" + str(FD.filelengthS)+" seconds)")
     dpg.show_item("secButtonAdd")
     dpg.show_item("runButt")
 
