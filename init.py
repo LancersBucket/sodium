@@ -6,6 +6,8 @@ from ffmpeg import Progress
 from ffmpeg.asyncio import FFmpeg
 
 tag = 0
+numComplete = 0
+errors = 0
 
 class FD:
     file = ""
@@ -21,7 +23,7 @@ async def ffmpegCut(inp: str, outname: str, caller:str, start="", end=""):
         dpg.delete_item(caller+"Error")
     except Exception as e:
         pass
-    dpg.add_text("",parent=caller,tag=caller+"Error",color=(255,0,0,255))
+    dpg.add_text("",parent=caller,tag=caller+"Error",color=(255,255,255,255))
     if (start=="" and end==""):
         return
     elif (start == ""):
@@ -71,20 +73,42 @@ async def ffmpegCut(inp: str, outname: str, caller:str, start="", end=""):
     def on_terminated():
         print("terminated")
 
+    global numComplete
+    global errors
     try:
         await ffmpeg.execute()
         dpg.configure_item(caller+"colLab",color=(0,255,0,255))
         dpg.delete_item(caller+"Error")
+        numComplete += 1
     except Exception as e:
+        dpg.configure_item(caller+"Error",color=(255,0,0,255))
+        dpg.configure_item(caller+"colLab",color=(255,0,0,255))
+        errors += 1
         print(e)
         
 def runCut():
+    global numComplete
+    global errors
+    dpg.configure_item("runStatus",color=(255,255,255,255))
+    dpg.set_value("runStatus","Running... standby...")
     segments = dpg.get_item_children("timing")[1]
     for segment in segments:
+        dpg.configure_item(dpg.get_item_alias(segment)+"colLab",color=(255,255,255,255))
+    for segment in segments:
         segtag = dpg.get_item_alias(segment)
-        if (dpg.get_item_label(segtag+"Butt") == "Enable Output"):
+        dpg.configure_item(segtag+"colLab",color=(255,0,0,255))
+        if (dpg.get_item_label(segtag+"Butt") == "Disabled"):
+            dpg.configure_item(segtag+"colLab",color=(124,124,124,255))
             continue
         asyncio.run(ffmpegCut(FD.filePath,outname=dpg.get_value(segtag+"Lab"),caller=segtag, start=dpg.get_value(segtag+"Start"),end=dpg.get_value(segtag+"End")))
+    dpg.configure_item("runStatus",color=(0,255,0,255))
+    segStr = "segment" if numComplete == 1 else "segements"
+    errStr = "error" if errors == 1 else "errors"
+    output = "Completed {numComplete} {segStr} with {errors} {errStr}."
+    output = output.format(numComplete=numComplete,segStr=segStr,errors=errors,errStr=errStr)
+    dpg.set_value("runStatus",output)
+    numComplete = 0
+    errors = 0
 
 def fileSelect(sender, app_data):
     # Forgive me father for I have sinned
@@ -99,10 +123,10 @@ def fileSelect(sender, app_data):
     dpg.show_item("runButt")
 
 def outputToggle(sender):
-    if (dpg.get_item_label(sender) == "Disable Output"):
-        dpg.set_item_label(sender,"Enable Output")
+    if (dpg.get_item_label(sender) == "Enabled"):
+        dpg.set_item_label(sender,"Disabled")
     else:
-        dpg.set_item_label(sender,"Disable Output")
+        dpg.set_item_label(sender,"Enabled")
 
 def segDestroy(sender):
     dpg.delete_item(sender.split("Remove")[0])
@@ -119,7 +143,7 @@ def addSec():
         dpg.add_input_text(hint="HH:MM:SS.mmm",default_value="00:00:00.000",tag=loctag+"End",width=100)
         dpg.add_button(label="Up",callback=lambda:dpg.move_item_up(loctag))
         dpg.add_button(label="Down",callback=lambda:dpg.move_item_down(loctag))
-        dpg.add_button(label="Disable Output",tag=(loctag+"Butt"), callback=outputToggle)
+        dpg.add_button(label="Enabled",tag=(loctag+"Butt"), callback=outputToggle)
         dpg.add_button(label="Delete",tag=loctag+"Remove",callback=segDestroy)
     tag += 1
 
@@ -139,6 +163,7 @@ with dpg.window(label="Carbon",tag="main",no_close=True):
     with dpg.group(tag="timing"):
         pass
     dpg.add_button(label="RUN!",tag="runButt",callback=runCut,show=False)
+    dpg.add_text(tag="runStatus")
 
 print(FD.calcTimecode(576.432))
 dpg.set_primary_window("main",True)
