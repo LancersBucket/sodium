@@ -1,6 +1,7 @@
 """Module Imports"""
-import asyncio
+from sys import exit as sys_exit
 from datetime import timedelta
+import asyncio
 import dearpygui.dearpygui as dpg
 from ffmpeg import Progress
 from ffmpeg.asyncio import FFmpeg
@@ -158,11 +159,22 @@ def add_sec():
     """Adds a section in the segment list"""
     # Generates friendly readable name
     loctag = "tc"+str(Global.tag)
+
+    # Tries to get the previous segments end value for new start value, otherwise make it 00:00:00.000
+    segments = dpg.get_item_children("timing")[1]
+    last_segment = len(segments)-1
+    try:
+        last_seg_end = dpg.get_value(dpg.get_item_alias(segments[last_segment])+"End")
+    except Exception:
+        last_seg_end = "00:00:00.000"
+    if last_seg_end == "" or last_seg_end is None:
+        last_seg_end = "00:00:00.000"
+
     with dpg.group(parent="timing",horizontal=True,tag=loctag):
         dpg.add_text("Label:",tag=loctag+"colLab")
         dpg.add_input_text(default_value=Global.tag,tag=loctag+"Lab",width=100)
         dpg.add_text("Start:")
-        dpg.add_input_text(hint="HH:MM:SS.mmm",default_value="00:00:00.000",tag=loctag+"Start",width=100)
+        dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=last_seg_end,tag=loctag+"Start",width=100)
         dpg.add_text("End:")
         dpg.add_input_text(hint="HH:MM:SS.mmm",default_value="00:00:00.000",tag=loctag+"End",width=100)
         dpg.add_button(label="Up",callback=lambda:dpg.move_item_up(loctag))
@@ -172,7 +184,7 @@ def add_sec():
     Global.tag += 1
 
 dpg.create_context()
-dpg.create_viewport(title='Oxygen', width=1000, height=600)
+dpg.create_viewport(title='Sodium', width=1000, height=600)
 dpg.setup_dearpygui()
 
 # Creates file diag thats shows when you open the app
@@ -195,4 +207,4 @@ dpg.set_primary_window("main",True)
 dpg.show_viewport()
 dpg.start_dearpygui()
 dpg.destroy_context()
-exit()
+sys_exit()
