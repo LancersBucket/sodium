@@ -140,6 +140,13 @@ def run_cut():
 
 def file_select(sender, app_data):
     """File selecter callbacks"""
+
+    # Reset segment label color to white
+    segments = dpg.get_item_children("timing")[1]
+    for segment in segments:
+        dpg.configure_item(dpg.get_item_alias(segment)+"colLab",color=(255,255,255,255))
+        dpg.delete_item(dpg.get_item_alias(segment)+"Error")
+
     # Forgive me father for I have sinned
     FD.file = str(app_data["selections"].keys()).split("['")[1].split("']")[0]
     FD.filePath = str(app_data["selections"].values()).split("['")[1].split("']")[0]
@@ -210,7 +217,12 @@ dpg.setup_dearpygui()
 # Creates file diag thats shows when you open the app
 with dpg.file_dialog(label="Select A Music File",tag="fileselect",file_count=1,height=400,width=600,
                      modal=True,show=True,callback=file_select):
-    dpg.add_file_extension(".mp3",color=(0,255,0,255),custom_text="[Music]")
+    dpg.add_file_extension("Music (*.mp3 *.wav *.aac *.ogg *.flac){.mp3,.wav,.aac,.ogg,.flac}")
+    dpg.add_file_extension(".mp3",color=(0,255,0,255),custom_text="[MP3]")
+    dpg.add_file_extension(".wav",color=(0,255,0,255),custom_text="[WAV]")
+    dpg.add_file_extension(".aac",color=(0,255,0,255),custom_text="[AAC]")
+    dpg.add_file_extension(".ogg",color=(0,255,0,255),custom_text="[OGG]")
+    dpg.add_file_extension(".flac",color=(0,255,0,255),custom_text="[FLAC]")
     dpg.add_file_extension("",color=(150, 150, 150, 255))
 
 with dpg.window(label="Carbon",tag="main",no_close=True):
