@@ -19,9 +19,9 @@ Sodium is designed to be a simple and easy program to cut music files into segme
 ## TODO
 - [ ] Add support for more audio file types
    - [ ] WAV
-   - [ ] ACC
+   - [ ] AAC
    - [ ] OGG
-   - [ ] FLACUp
+   - [ ] FLAC
 - [ ] Improve UI layout
 - [ ] Add more functionality for segment creation
 

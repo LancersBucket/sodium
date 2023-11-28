@@ -6,6 +6,10 @@ import dearpygui.dearpygui as dpg
 from ffmpeg import Progress
 from ffmpeg.asyncio import FFmpeg
 from mutagen.mp3 import MP3
+from mutagen.wave import WAVE
+from mutagen.aac import AAC
+from mutagen.oggvorbis import OggVorbis
+from mutagen.flac import FLAC
 
 class Global:
     """Globalvar vars"""
@@ -19,12 +23,13 @@ class FD:
     filePath = ""
     filelengthS = -1
     timecodeLength = ""
+    fileExt = ""
 
 def calc_timecode(len_seconds: float) -> str:
     """Calculates timecode from given length in seconds"""
     return str(timedelta(seconds=len_seconds)).split("000",maxsplit=1)[0]
 
-async def ffmpeg_cut(inp: str, outname: str, caller:str, start="", end=""):
+async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end=""):
     """Main ffmpeg function to segment a given file"""
     # Checks if [caller]Error exists and if so, remove it. Otherwise keep going.
     try:
@@ -33,6 +38,7 @@ async def ffmpeg_cut(inp: str, outname: str, caller:str, start="", end=""):
         pass
     # Add status text for specific segment
     dpg.add_text("",parent=caller,tag=caller+"Error",color=(255,255,255,255))
+    output_name = outname+"."+ext
 
     # If start or end is empty set up options to ignore it
     if start == "":
@@ -41,7 +47,7 @@ async def ffmpeg_cut(inp: str, outname: str, caller:str, start="", end=""):
             .option("y")
             .option("to",end)
             .input(inp)
-            .output(outname+".mp3")
+            .output(output_name)
         )
     elif end == "":
         ffmpeg = (
@@ -49,7 +55,7 @@ async def ffmpeg_cut(inp: str, outname: str, caller:str, start="", end=""):
             .option("y")
             .option("ss",start)
             .input(inp)
-            .output(outname+".mp3")
+            .output(output_name)
         )
     else:
         ffmpeg = (
@@ -58,7 +64,7 @@ async def ffmpeg_cut(inp: str, outname: str, caller:str, start="", end=""):
             .option("ss",start)
             .option("to",end)
             .input(inp)
-            .output(outname+".mp3")
+            .output(output_name)
         )
 
     # Logging handlers
@@ -118,7 +124,7 @@ def run_cut():
             dpg.configure_item(segtag+"colLab",color=(150,150,150,255))
             continue
         # Run ffmpeg asyncronously
-        asyncio.run(ffmpeg_cut(FD.filePath,outname=dpg.get_value(segtag+"Lab"),caller=segtag,
+        asyncio.run(ffmpeg_cut(FD.filePath,outname=dpg.get_value(segtag+"Lab"),caller=segtag,ext=FD.fileExt,
                                start=dpg.get_value(segtag+"Start"),end=dpg.get_value(segtag+"End")))
     # Set final status to green
     dpg.configure_item("runStatus",color=(0,255,0,255))
@@ -138,8 +144,22 @@ def file_select(sender, app_data):
     FD.file = str(app_data["selections"].keys()).split("['")[1].split("']")[0]
     FD.filePath = str(app_data["selections"].values()).split("['")[1].split("']")[0]
 
+    # Get file extension
+    splitfile = FD.file.split(".")
+    FD.fileExt = splitfile[len(splitfile)-1]
+
     # Get song length
-    FD.filelengthS = MP3(FD.filePath).info.length
+    match FD.fileExt:
+        case "mp3":
+            FD.filelengthS = MP3(FD.filePath).info.length
+        case "wav":
+            FD.filelengthS = WAVE(FD.filePath).info.length
+        case "aac":
+            FD.filelengthS = AAC(FD.filePath).info.length
+        case "ogg":
+            FD.filelengthS = OggVorbis(FD.filePath).info.length
+        case "flac":
+            FD.filelengthS = FLAC(FD.filePath).info.length
     FD.timecodeLength = calc_timecode(FD.filelengthS)
 
     # Display filename, length, and show the buttons to use the program
