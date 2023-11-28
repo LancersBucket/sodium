@@ -145,7 +145,7 @@ def file_select(sender, app_data):
     # Display filename, length, and show the buttons to use the program
     dpg.set_value("stat", "Currently loaded file: " + FD.file)
     dpg.set_value('filelen',"File length: " + FD.timecodeLength + " (" + str(FD.filelengthS)+" seconds)")
-    dpg.show_item("secButtonAdd")
+    dpg.show_item("secAddGroup")
     dpg.show_item("runButt")
 
 def output_toggle(sender):
@@ -197,7 +197,8 @@ with dpg.window(label="Carbon",tag="main",no_close=True):
     dpg.add_button(label="File Select",callback=lambda: dpg.show_item("fileselect"))
     dpg.add_text("No File Loaded", tag="stat")
     dpg.add_text(tag="filelen")
-    dpg.add_button(label="Add Section",tag="secButtonAdd",callback=add_sec,show=False)
+    with dpg.group(tag="secAddGroup",horizontal=True,show=False):
+        dpg.add_button(label="Add Section",tag="secButtonAdd",callback=add_sec)
     with dpg.group(tag="timing"):
         pass
     dpg.add_button(label="Execute",tag="runButt",callback=run_cut,show=False)
