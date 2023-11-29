@@ -28,7 +28,7 @@ class FD:
 
 def timecode_parser(timecode: str) -> tuple:
     """Parses timecode into h, m, s, and ms"""
-    valid = timecode_checker(timecode)
+    valid = timecode_validate(timecode)
     has_ms = False
     tc = timecode
     h = ""
@@ -52,7 +52,7 @@ def timecode_parser(timecode: str) -> tuple:
 
     return h, m, s, ms, valid
 
-def timecode_checker(timecode:str) -> str | bool:
+def timecode_validate(timecode:str) -> str | bool:
     """Validates timecode"""
     has_ms = False
     tc = timecode
@@ -79,6 +79,8 @@ def timecode_checker(timecode:str) -> str | bool:
         # If # of digits in ms >3, invalid
         if len(ms) > 3:
             return "Milliseconds greater than 3 digits"
+        if len(ms) == 0:
+            return "Specified milliseconds but none provided"
 
     # Count number of : in tc
     count_split = tc.count(":")
@@ -156,7 +158,10 @@ async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end
     def on_stderr(line):
         print("stderr:", line)
         # Print any errors directly to the status line
-        dpg.set_value(caller+"Error",line)
+        if line.find("[sw") == -1:
+            dpg.set_value(caller+"Error",line)
+        if line.find("Press [q]") >= 0:
+            dpg.set_value(caller+"Error","Running...")
 
     @ffmpeg.on("progress")
     def on_progress(progress: Progress):
@@ -185,11 +190,14 @@ async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end
 
 def run_cut():
     """Callback to run ffmpeg segment cuts"""
-    # Set final status to white text
-    dpg.configure_item("runStatus",color=(255,255,255,255))
-    dpg.set_value("runStatus","Running... standby...")
+    dpg.hide_item("runButt")
     # Get segements internal id
     segments = dpg.get_item_children("timing")[1]
+    # Set final status to white text
+    dpg.configure_item("runStatus",color=(255,255,255,255))
+    dpg.set_value("runStatus","Running... ({done}/{total})".format(
+        done=Global.numComplete+Global.errors,total=len(segments)))
+    dpg.show_item("load")
     # Reset segment label color to white
     for segment in segments:
         dpg.configure_item(dpg.get_item_alias(segment)+"colLab",color=(255,255,255,255))
@@ -206,8 +214,12 @@ def run_cut():
         # Run ffmpeg asyncronously
         asyncio.run(ffmpeg_cut(FD.filePath,outname=dpg.get_value(segtag+"Lab"),caller=segtag,ext=FD.fileExt,
                                start=dpg.get_value(segtag+"Start"),end=dpg.get_value(segtag+"End")))
+        dpg.set_value("runStatus","Running... ({done}/{total})".format(
+            done=Global.numComplete+Global.errors,total=len(segments)))
     # Set final status to green
     dpg.configure_item("runStatus",color=(0,255,0,255))
+    dpg.hide_item("load")
+    dpg.show_item("runButt")
 
     # String formatting for final status, and resets counters
     seg_str = "segment" if Global.numComplete == 1 else "segements"
@@ -218,7 +230,7 @@ def run_cut():
     Global.numComplete = 0
     Global.errors = 0
 
-def file_select(sender, app_data):
+def music_select(sender, app_data):
     """File selecter callbacks"""
 
     # Reset segment label color to white
@@ -255,6 +267,10 @@ def file_select(sender, app_data):
     dpg.set_value('filelen',"File length: " + FD.timecodeLength + " (" + str(FD.filelengthS)+" seconds)")
     dpg.show_item("secAddGroup")
     dpg.show_item("runButt")
+
+    # Enable importing/exporting STC file
+    dpg.show_item("importSTC")
+    dpg.show_item("exportSTC")
 
 def output_toggle(sender):
     """Toggles the label on the enable/disable segment button"""
@@ -302,7 +318,7 @@ def timecode_box(sender,user_data):
         err_cause = "End"
 
     # Gets error text, if any
-    valid = timecode_checker(user_data)
+    valid = timecode_validate(user_data)
 
     # Get other box input and check if it is better or worse you know what I mean
     h, m, s, ms, valid = timecode_parser(user_data)
@@ -332,7 +348,7 @@ def timecode_box(sender,user_data):
         dpg.configure_item(error_text+"Error",color=(255,0,0,255))
         dpg.set_value(error_text+"Error",err_cause + " Error: " + valid)
 
-def add_sec():
+def add_sec(label=None,start=None,end=None):
     """Adds a section in the segment list"""
     # Generates friendly readable name
     loctag = "tc"+str(Global.tag)
@@ -349,13 +365,24 @@ def add_sec():
 
     with dpg.group(parent="timing",horizontal=True,tag=loctag):
         dpg.add_text("Label:",tag=loctag+"colLab")
-        dpg.add_input_text(default_value=str(Global.tag)+" ",tag=loctag+"Lab",width=150)
+        if label is None:
+            dpg.add_input_text(default_value=str(Global.tag)+" ",tag=loctag+"Lab",width=150)
+        else:
+            dpg.add_input_text(default_value=label,tag=loctag+"Lab",width=150)
         dpg.add_text("Start:")
-        dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=last_seg_end,tag=loctag+"Start",
-                           width=100,callback=timecode_box)
+        if start is None:
+            dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=last_seg_end,tag=loctag+"Start",
+                               width=100,callback=timecode_box)
+        else:
+            dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=start,tag=loctag+"Start",
+                               width=100,callback=timecode_box)
         dpg.add_text("End:")
-        dpg.add_input_text(hint="HH:MM:SS.mmm",default_value="00:00:00.000",tag=loctag+"End",
-                           width=100,callback=timecode_box)
+        if end is None:
+            dpg.add_input_text(hint="HH:MM:SS.mmm",default_value="00:00:00.000",tag=loctag+"End",
+                               width=100,callback=timecode_box)
+        else:
+            dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=end,tag=loctag+"End",
+                               width=100,callback=timecode_box)
         dpg.add_button(label="Enabled",tag=(loctag+"Butt"), callback=output_toggle)
         dpg.add_button(label="Delete",tag=loctag+"Remove",callback=lambda:dpg.delete_item(loctag))
         dpg.add_text(tag=loctag+"Error")
@@ -365,9 +392,53 @@ dpg.create_context()
 dpg.create_viewport(title='Sodium', width=1000, height=600)
 dpg.setup_dearpygui()
 
+def stc_select(sender, app_data):
+    """Callback to parse and import a STC file"""
+    # Purge all current segments
+    segments = dpg.get_item_children("timing")[1]
+    for segment in segments:
+        dpg.delete_item(segment)
+
+    # Forgive me father for I have sinned. Sudo give me the key and value.
+    file = str(app_data["selections"].keys()).split("['")[1].split("']")[0]
+    file_path = str(app_data["selections"].values()).split("['")[1].split("']")[0]
+
+    error = False
+    count = 1
+    for line in open(file_path,"r",encoding="UTF-8").readlines():
+        if line.find("?") <= 0:
+            error = f"Error on line {count} of {file}: Missing ?".format(count=count,file=file)
+            break
+        if line.find("-") <= 0:
+            error = f"Error on line {count} of {file}: Missing -".format(count=count,file=file)
+            break
+
+        label, timecodes = line.split("?")
+        time_start, time_end = timecodes.split("-")
+
+        time_start = time_start.strip()
+        time_end = time_end.strip()
+
+        valid_start = timecode_validate(time_start)
+        valid_end = timecode_validate(time_end)
+
+        if valid_start is not True:
+            error = f"Error on line {count} of {file}: Start timecode {valid_start}"
+            break
+        if valid_end is not True:
+            error = f"Error on line {count} of {file}: End timecode {valid_end}"
+            break
+
+        add_sec(label, time_start, time_end)
+        count += 1
+
+    if error is not False:
+        dpg.configure_item("runStatus",color=(255,0,0,255))
+        dpg.set_value("runStatus", error)
+
 # Creates file diag thats shows when you open the app
-with dpg.file_dialog(label="Select A Music File",tag="fileselect",file_count=1,height=400,width=600,
-                     modal=True,show=True,callback=file_select):
+with dpg.file_dialog(label="Select A Music File",tag="musicselect",file_count=1,height=400,width=600,
+                     modal=True,show=True,callback=music_select):
     dpg.add_file_extension("Music (*.mp3 *.wav *.aac *.ogg *.flac){.mp3,.wav,.aac,.ogg,.flac}")
     dpg.add_file_extension(".mp3",color=(0,255,0,255),custom_text="[MP3]")
     dpg.add_file_extension(".wav",color=(0,255,0,255),custom_text="[WAV]")
@@ -376,8 +447,18 @@ with dpg.file_dialog(label="Select A Music File",tag="fileselect",file_count=1,h
     dpg.add_file_extension(".flac",color=(0,255,0,255),custom_text="[FLAC]")
     dpg.add_file_extension("",color=(150, 150, 150, 255))
 
+with dpg.file_dialog(label="Select A Sodium Timecode File",tag="fileselect",file_count=1,height=400,width=600,
+                     modal=True,show=False,callback=stc_select):
+    dpg.add_file_extension("Sodium Timecode (*.stc *.txt){.stc,.txt}")
+    dpg.add_file_extension(".stc",color=(0,255,0,255),custom_text="[Timecode]")
+    dpg.add_file_extension(".txt",color=(0,255,0,255),custom_text="[Timecode]")
+    dpg.add_file_extension("",color=(150, 150, 150, 255))
+
 with dpg.window(label="Carbon",tag="main",no_close=True):
-    dpg.add_button(label="File Select",callback=lambda: dpg.show_item("fileselect"))
+    with dpg.group(horizontal=True):
+        dpg.add_button(label="File Select",callback=lambda: dpg.show_item("musicselect"))
+        dpg.add_button(label="Import Timecode",tag="importSTC",callback=lambda: dpg.show_item("fileselect"),show=False)
+        #dpg.add_button(label="Export Timecode",tag="exportSTC",show=False)
     dpg.add_text("No File Loaded", tag="stat")
     dpg.add_text(tag="filelen")
     with dpg.group(tag="secAddGroup",horizontal=True,show=False):
@@ -385,7 +466,10 @@ with dpg.window(label="Carbon",tag="main",no_close=True):
     with dpg.group(tag="timing"):
         pass
     dpg.add_button(label="Execute",tag="runButt",callback=run_cut,show=False)
-    dpg.add_text(tag="runStatus")
+    with dpg.group(horizontal=True):
+        dpg.add_loading_indicator(tag="load", circle_count=6,color=(29, 151, 236, 255),
+                                  secondary_color=(51, 51, 55, 255), speed=2,radius=1.5,show=False)
+        dpg.add_text(tag="runStatus")
 
 dpg.set_primary_window("main",True)
 dpg.show_viewport()
