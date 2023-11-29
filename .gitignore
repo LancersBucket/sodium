@@ -3,3 +3,6 @@ build
 dist
 *.spec
 .vscode
+changes.md
+*.stc
+__pycache__

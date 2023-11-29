@@ -25,19 +25,97 @@ class FD:
     timecodeLength = ""
     fileExt = ""
 
+def timecode_parser(timecode: str) -> tuple | str:
+    """Parses timecode into h, m, s, and ms"""
+    valid = timecode_checker(timecode)
+    if valid is not True:
+        return valid
+    has_ms = False
+    tc = timecode
+    h = ""
+    m = ""
+    s = ""
+    ms = ""
+
+    # If a timecode has a . split timecode into everything else and the ms
+    count_ms = timecode.count(".")
+    if count_ms == 1:
+        has_ms = True
+    if has_ms:
+        tc, ms = timecode.split(".")
+
+    # Split the timecode into h, m, and s
+    count_split = tc.count(":")
+    if count_split == 1:
+        m, s = tc.split(":")
+    elif count_split == 2:
+        h, m, s = tc.split(":")
+
+    return h, m, s, ms
+
+def timecode_checker(timecode:str) -> str | bool:
+    """Validates timecode"""
+    has_ms = False
+    tc = timecode
+    h = ""
+    m = ""
+    s = ""
+    ms = ""
+
+    # Counts number of .
+    count_ms = timecode.count(".")
+    # If it is one, then there are ms, if it is >1, then invalid
+    if count_ms == 1:
+        has_ms = True
+    if count_ms > 1:
+        return "Multiple . detected"
+
+    # If it has ms, put the timecode without ms into tc
+    if has_ms:
+        tc, ms = timecode.split(".")
+        # If # of digits in ms >3, invalid
+        if len(ms) > 3:
+            return "Milliseconds greater than 3 digits"
+
+    # Count number of : in tc
+    count_split = tc.count(":")
+
+    # If 0, invalid
+    if count_split == 0:
+        return "Format: HH:MM:SS.mmm"
+
+    # If 1, then it only has minutes and second
+    if count_split == 1:
+        m, s = tc.split(":")
+    # If it is 2, then it has hr, min, and sec
+    elif count_split == 2:
+        h, m, s = tc.split(":")
+    # If it has more than 2, then it is invalid
+    elif count_split > 2:
+        return "Format: HH:MM:SS.mmm"
+
+    if len(h) > 2:
+        return "Format: HH:MM:SS.mmm"
+    if len(m) > 2:
+        return "Format: HH:MM:SS.mmm"
+    if len(s) > 2:
+        return "Format: HH:MM:SS.mmm"
+
+    if int(m) >= 60:
+        return "Minutes greater than 59"
+    if int(s) >= 60:
+        return "Seconds greater than 59"
+
+    return True
+
 def calc_timecode(len_seconds: float) -> str:
     """Calculates timecode from given length in seconds"""
     return str(timedelta(seconds=len_seconds)).split("000",maxsplit=1)[0]
 
 async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end=""):
     """Main ffmpeg function to segment a given file"""
-    # Checks if [caller]Error exists and if so, remove it. Otherwise keep going.
-    try:
-        dpg.delete_item(caller+"Error")
-    except Exception:
-        pass
-    # Add status text for specific segment
-    dpg.add_text("",parent=caller,tag=caller+"Error",color=(255,255,255,255))
+
+    dpg.configure_item(caller+"Error",color=(255,255,255,255))
     output_name = outname+"."+ext
 
     # If start or end is empty set up options to ignore it
@@ -94,7 +172,7 @@ async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end
     try:
         await ffmpeg.execute()
         dpg.configure_item(caller+"colLab",color=(0,255,0,255))
-        dpg.delete_item(caller+"Error")
+        dpg.set_value(caller+"Error","")
         Global.numComplete += 1
     # Otherwise set label to red, and error out
     except Exception as e:
@@ -147,7 +225,7 @@ def file_select(sender, app_data):
         dpg.configure_item(dpg.get_item_alias(segment)+"colLab",color=(255,255,255,255))
         dpg.delete_item(dpg.get_item_alias(segment)+"Error")
 
-    # Forgive me father for I have sinned
+    # Forgive me father for I have sinned. Sudo give me the key and value.
     FD.file = str(app_data["selections"].keys()).split("['")[1].split("']")[0]
     FD.filePath = str(app_data["selections"].values()).split("['")[1].split("']")[0]
 
@@ -182,6 +260,28 @@ def output_toggle(sender):
     else:
         dpg.set_item_label(sender,"Enabled")
 
+def timecode_box(sender,user_data):
+    """Callback to handle and display errors with timecode input"""
+
+    # Checks if Start or End timecode box called it
+    if sender.find("Start"):
+        error_text = sender.split("Start")[0]
+        err_cause = "Start"
+    if sender.find("End"):
+        error_text = sender.split("End")[0]
+        err_cause = "End"
+
+    # Gets error text, if any
+    valid = timecode_checker(user_data)
+
+    # Clears error box or shows error
+    if valid is True:
+        dpg.configure_item(error_text+"Error",color=(255,255,255,255))
+        dpg.set_value(error_text+"Error","")
+    else:
+        dpg.configure_item(error_text+"Error",color=(255,0,0,255))
+        dpg.set_value(error_text+"Error",err_cause + " Error: " + valid)
+
 def add_sec():
     """Adds a section in the segment list"""
     # Generates friendly readable name
@@ -199,15 +299,18 @@ def add_sec():
 
     with dpg.group(parent="timing",horizontal=True,tag=loctag):
         dpg.add_text("Label:",tag=loctag+"colLab")
-        dpg.add_input_text(default_value=Global.tag,tag=loctag+"Lab",width=100)
+        dpg.add_input_text(default_value=str(Global.tag)+" ",tag=loctag+"Lab",width=150)
         dpg.add_text("Start:")
-        dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=last_seg_end,tag=loctag+"Start",width=100)
+        dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=last_seg_end,tag=loctag+"Start",
+                           width=100,callback=timecode_box)
         dpg.add_text("End:")
-        dpg.add_input_text(hint="HH:MM:SS.mmm",default_value="00:00:00.000",tag=loctag+"End",width=100)
-        dpg.add_button(label="Up",callback=lambda:dpg.move_item_up(loctag))
-        dpg.add_button(label="Down",callback=lambda:dpg.move_item_down(loctag))
+        dpg.add_input_text(hint="HH:MM:SS.mmm",default_value="00:00:00.000",tag=loctag+"End",
+                           width=100,callback=timecode_box)
+        #dpg.add_button(label="Up",callback=lambda:dpg.move_item_up(loctag))
+        #dpg.add_button(label="Down",callback=lambda:dpg.move_item_down(loctag))
         dpg.add_button(label="Enabled",tag=(loctag+"Butt"), callback=output_toggle)
         dpg.add_button(label="Delete",tag=loctag+"Remove",callback=lambda:dpg.delete_item(loctag))
+        dpg.add_text("temp",tag=loctag+"Error")
     Global.tag += 1
 
 dpg.create_context()
