@@ -270,7 +270,7 @@ def music_select(sender, app_data):
 
     # Enable importing/exporting STC file
     dpg.show_item("importSTC")
-    dpg.show_item("exportSTC")
+    #dpg.show_item("exportSTC")
 
 def output_toggle(sender):
     """Toggles the label on the enable/disable segment button"""
