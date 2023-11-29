@@ -262,8 +262,11 @@ def output_toggle(sender):
     else:
         dpg.set_item_label(sender,"Enabled")
 
-def time_compare(h1,m1,s1,ms1,h2,m2,s2,ms2) -> int:
+def time_compare(time1: tuple[int], time2: tuple[int]) -> int:
     """1 for time1 being larger than time2, 0 if they are the same, -1 if time2 is larger than time1"""
+    h1, m1, s1, ms1 = time1
+    h2, m2, s2, ms2 = time2
+
     # Compare h1 and h2, if they are the same fall through to next check
     if h1>h2:
         return 1
@@ -282,7 +285,7 @@ def time_compare(h1,m1,s1,ms1,h2,m2,s2,ms2) -> int:
     # Compare ms1 and ms2, if they are the same fall through to next check
     if ms1>ms2:
         return 1
-    elif ms1<ms2:
+    if ms1<ms2:
         return -1
     return 0
 
@@ -305,12 +308,12 @@ def timecode_box(sender,user_data):
     if err_cause == "Start":
         h2, m2, s2, ms2, valid2 = timecode_parser(dpg.get_value(error_text+"End"))
         if valid2 is True:
-            if time_compare(h,m,s,ms,h2,m2,s2,ms2) == 1:
+            if time_compare((h,m,s,ms),(h2,m2,s2,ms2)) == 1:
                 valid = "Start time is greater than end time"
     if err_cause == "End":
         h2, m2, s2, ms2, valid2 = timecode_parser(dpg.get_value(error_text+"Start"))
         if valid2 is True:
-            if time_compare(h,m,s,ms,h2,m2,s2,ms2) == -1:
+            if time_compare((h,m,s,ms),(h2,m2,s2,ms2)) == -1:
                 valid = "Start time is greater than end time"
 
     # Clears error box or shows error
