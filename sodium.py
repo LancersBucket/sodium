@@ -1,6 +1,7 @@
 """Module Imports"""
 from sys import exit as sys_exit
 from datetime import timedelta
+from re import compile as regex_compile
 import asyncio
 import dearpygui.dearpygui as dpg
 from ffmpeg import Progress
@@ -62,6 +63,10 @@ def timecode_checker(timecode:str) -> str | bool:
     s = ""
     ms = ""
 
+    regex = regex_compile("^[0-9:.]+$")
+    if not regex.match(timecode):
+        return "Timecode can only contain 0-9, :, and ."
+
     # Counts number of .
     count_ms = timecode.count(".")
     # If it is one, then there are ms, if it is >1, then invalid
@@ -82,7 +87,7 @@ def timecode_checker(timecode:str) -> str | bool:
 
     # If 0, invalid
     if count_split == 0:
-        return "Format: HH:MM:SS.mmm"
+        return "Format: [HH:]MM:SS.mmm"
 
     # If 1, then it only has minutes and second
     if count_split == 1:
@@ -92,14 +97,14 @@ def timecode_checker(timecode:str) -> str | bool:
         h, m, s = tc.split(":")
     # If it has more than 2, then it is invalid
     elif count_split > 2:
-        return "Format: HH:MM:SS.mmm"
+        return "Format: [HH:]MM:SS.mmm"
 
     if len(h) > 2:
-        return "Format: HH:MM:SS.mmm"
-    if len(m) > 2:
-        return "Format: HH:MM:SS.mmm"
-    if len(s) > 2:
-        return "Format: HH:MM:SS.mmm"
+        return "Format: [HH:]MM:SS.mmm"
+    if not len(m) == 2:
+        return "Format: [HH:]MM:SS.mmm"
+    if not len(s) == 2:
+        return "Format: [HH:]MM:SS.mmm"
 
     if int(m) >= 60:
         return "Minutes greater than 59"
@@ -114,7 +119,6 @@ def calc_timecode(len_seconds: float) -> str:
 
 async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end=""):
     """Main ffmpeg function to segment a given file"""
-
     dpg.configure_item(caller+"Error",color=(255,255,255,255))
     output_name = outname+"."+ext
 
@@ -262,12 +266,11 @@ def output_toggle(sender):
 
 def timecode_box(sender,user_data):
     """Callback to handle and display errors with timecode input"""
-
     # Checks if Start or End timecode box called it
-    if sender.find("Start"):
+    if sender.find("Start") > -1:
         error_text = sender.split("Start")[0]
         err_cause = "Start"
-    if sender.find("End"):
+    if sender.find("End") > -1:
         error_text = sender.split("End")[0]
         err_cause = "End"
 
