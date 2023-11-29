@@ -26,11 +26,9 @@ class FD:
     timecodeLength = ""
     fileExt = ""
 
-def timecode_parser(timecode: str) -> tuple | str:
+def timecode_parser(timecode: str) -> tuple:
     """Parses timecode into h, m, s, and ms"""
     valid = timecode_checker(timecode)
-    if valid is not True:
-        return valid
     has_ms = False
     tc = timecode
     h = ""
@@ -52,7 +50,7 @@ def timecode_parser(timecode: str) -> tuple | str:
     elif count_split == 2:
         h, m, s = tc.split(":")
 
-    return h, m, s, ms
+    return h, m, s, ms, valid
 
 def timecode_checker(timecode:str) -> str | bool:
     """Validates timecode"""
@@ -264,6 +262,30 @@ def output_toggle(sender):
     else:
         dpg.set_item_label(sender,"Enabled")
 
+def time_compare(h1,m1,s1,ms1,h2,m2,s2,ms2) -> int:
+    """1 for time1 being larger than time2, 0 if they are the same, -1 if time2 is larger than time1"""
+    # Compare h1 and h2, if they are the same fall through to next check
+    if h1>h2:
+        return 1
+    if h1<h2:
+        return -1
+    # Compare m1 and m2, if they are the same fall through to next check
+    if m1>m2:
+        return 1
+    if m1<m2:
+        return -1
+    # Compare s1 and s2, if they are the same fall through to next check
+    if s1>s2:
+        return 1
+    if s1<s2:
+        return -1
+    # Compare ms1 and ms2, if they are the same fall through to next check
+    if ms1>ms2:
+        return 1
+    elif ms1<ms2:
+        return -1
+    return 0
+
 def timecode_box(sender,user_data):
     """Callback to handle and display errors with timecode input"""
     # Checks if Start or End timecode box called it
@@ -276,6 +298,20 @@ def timecode_box(sender,user_data):
 
     # Gets error text, if any
     valid = timecode_checker(user_data)
+
+    # Get other box input and check if it is better or worse you know what I mean
+    h, m, s, ms, valid = timecode_parser(user_data)
+
+    if err_cause == "Start":
+        h2, m2, s2, ms2, valid2 = timecode_parser(dpg.get_value(error_text+"End"))
+        if valid2 is True:
+            if time_compare(h,m,s,ms,h2,m2,s2,ms2) == 1:
+                valid = "Start time is greater than end time"
+    if err_cause == "End":
+        h2, m2, s2, ms2, valid2 = timecode_parser(dpg.get_value(error_text+"Start"))
+        if valid2 is True:
+            if time_compare(h,m,s,ms,h2,m2,s2,ms2) == -1:
+                valid = "Start time is greater than end time"
 
     # Clears error box or shows error
     if valid is True:
