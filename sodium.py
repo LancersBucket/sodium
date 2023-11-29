@@ -247,6 +247,7 @@ def file_select(sender, app_data):
             FD.filelengthS = OggVorbis(FD.filePath).info.length
         case "flac":
             FD.filelengthS = FLAC(FD.filePath).info.length
+    FD.filelengthS = round(FD.filelengthS, 3)
     FD.timecodeLength = calc_timecode(FD.filelengthS)
 
     # Display filename, length, and show the buttons to use the program
@@ -259,6 +260,7 @@ def output_toggle(sender):
     """Toggles the label on the enable/disable segment button"""
     if dpg.get_item_label(sender) == "Enabled":
         dpg.set_item_label(sender,"Disabled")
+        dpg.set_value(sender.split("Butt")[0]+"Error","")
     else:
         dpg.set_item_label(sender,"Enabled")
 
@@ -308,13 +310,19 @@ def timecode_box(sender,user_data):
     if err_cause == "Start":
         h2, m2, s2, ms2, valid2 = timecode_parser(dpg.get_value(error_text+"End"))
         if valid2 is True:
-            if time_compare((h,m,s,ms),(h2,m2,s2,ms2)) == 1:
+            compared = time_compare((h,m,s,ms),(h2,m2,s2,ms2))
+            if compared == 1:
                 valid = "Start time is greater than end time"
+            elif compared == 0:
+                valid = "Times cannot be the same"
     if err_cause == "End":
         h2, m2, s2, ms2, valid2 = timecode_parser(dpg.get_value(error_text+"Start"))
         if valid2 is True:
-            if time_compare((h,m,s,ms),(h2,m2,s2,ms2)) == -1:
+            compared = time_compare((h,m,s,ms),(h2,m2,s2,ms2))
+            if compared == -1:
                 valid = "Start time is greater than end time"
+            elif compared == 0:
+                valid = "Times cannot be the same"
 
     # Clears error box or shows error
     if valid is True:
@@ -348,11 +356,9 @@ def add_sec():
         dpg.add_text("End:")
         dpg.add_input_text(hint="HH:MM:SS.mmm",default_value="00:00:00.000",tag=loctag+"End",
                            width=100,callback=timecode_box)
-        #dpg.add_button(label="Up",callback=lambda:dpg.move_item_up(loctag))
-        #dpg.add_button(label="Down",callback=lambda:dpg.move_item_down(loctag))
         dpg.add_button(label="Enabled",tag=(loctag+"Butt"), callback=output_toggle)
         dpg.add_button(label="Delete",tag=loctag+"Remove",callback=lambda:dpg.delete_item(loctag))
-        dpg.add_text("temp",tag=loctag+"Error")
+        dpg.add_text(tag=loctag+"Error")
     Global.tag += 1
 
 dpg.create_context()
