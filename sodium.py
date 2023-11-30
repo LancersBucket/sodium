@@ -1,16 +1,16 @@
 """Module Imports"""
+from re import compile as regex_compile
 from sys import exit as sys_exit
 from datetime import timedelta
-from re import compile as regex_compile
 import asyncio
 import dearpygui.dearpygui as dpg
 from ffmpeg import Progress
 from ffmpeg.asyncio import FFmpeg
-from mutagen.mp3 import MP3
-from mutagen.wave import WAVE
-from mutagen.aac import AAC
 from mutagen.oggvorbis import OggVorbis
+from mutagen.wave import WAVE
 from mutagen.flac import FLAC
+from mutagen.mp3 import MP3
+from mutagen.aac import AAC
 
 class Global:
     """Globalvar vars"""
@@ -270,7 +270,7 @@ def music_select(sender, app_data):
 
     # Enable importing/exporting STC file
     dpg.show_item("importSTC")
-    #dpg.show_item("exportSTC")
+    dpg.show_item("exportSTC")
 
 def output_toggle(sender):
     """Toggles the label on the enable/disable segment button"""
@@ -348,7 +348,7 @@ def timecode_box(sender,user_data):
         dpg.configure_item(error_text+"Error",color=(255,0,0,255))
         dpg.set_value(error_text+"Error",err_cause + " Error: " + valid)
 
-def add_sec(label=None,start=None,end=None):
+def add_sec(sender, app_data, user_data, label=None,start=None,end=None):
     """Adds a section in the segment list"""
     # Generates friendly readable name
     loctag = "tc"+str(Global.tag)
@@ -429,12 +429,45 @@ def stc_select(sender, app_data):
             error = f"Error on line {count} of {file}: End timecode {valid_end}"
             break
 
-        add_sec(label, time_start, time_end)
+        add_sec(None, None, None, label, time_start, time_end)
         count += 1
 
     if error is not False:
         dpg.configure_item("runStatus",color=(255,0,0,255))
         dpg.set_value("runStatus", error)
+
+def exportFile():
+    """Handles exporting the file"""
+    segments = dpg.get_item_children("timing")[1]
+    with open(dpg.get_value("exportName")+".stc","w",encoding="UTF-8") as file:
+        for segment in segments:
+            segtag = dpg.get_item_alias(segment)
+            file.write("{lab}?{start}-{end}\n".format(lab=dpg.get_value(segtag+"Lab"),
+                                                    start=dpg.get_value(segtag+"Start"),
+                                                    end=dpg.get_value(segtag+"End")))
+    dpg.delete_item("tcexportmodal")
+
+def export_file_window():
+    """Creates the export file window"""
+    with dpg.window(label="Export Timecodes",tag="tcexportmodal",
+                    no_move=True,no_collapse=True,no_close=True,modal=True,no_resize=True,height=10):
+        with dpg.group(horizontal=True):
+            dpg.add_text("Enter a file name:")
+            dpg.add_input_text(label=".stc",tag="exportName",width=100)
+        with dpg.group(horizontal=True):
+            dpg.add_button(label="Export",tag="exportFileButt",callback=exportFile)
+            dpg.add_button(label="Cancel",callback=lambda:dpg.delete_item("tcexportmodal"))
+
+    dpg.split_frame()
+
+    width = dpg.get_item_width("tcexportmodal")
+    height = dpg.get_item_height("tcexportmodal")
+
+    pos = [(dpg.get_viewport_width()//2)-(width//2),
+           (dpg.get_viewport_height()//2)-(height//2)]
+
+    dpg.configure_item("tcexportmodal",pos=pos)
+
 
 # Creates file diag thats shows when you open the app
 with dpg.file_dialog(label="Select A Music File",tag="musicselect",file_count=1,height=400,width=600,
@@ -458,7 +491,7 @@ with dpg.window(label="Carbon",tag="main",no_close=True):
     with dpg.group(horizontal=True):
         dpg.add_button(label="File Select",callback=lambda: dpg.show_item("musicselect"))
         dpg.add_button(label="Import Timecode",tag="importSTC",callback=lambda: dpg.show_item("fileselect"),show=False)
-        #dpg.add_button(label="Export Timecode",tag="exportSTC",show=False)
+        dpg.add_button(label="Export Timecode",tag="exportSTC",callback=export_file_window,show=False)
     dpg.add_text("No File Loaded", tag="stat")
     dpg.add_text(tag="filelen")
     with dpg.group(tag="secAddGroup",horizontal=True,show=False):
