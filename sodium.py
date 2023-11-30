@@ -129,7 +129,7 @@ async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end
             .option("y")
             .option("to",end)
             .input(inp)
-            .output(output_name)
+            .output(output_name, acodec="copy")
         )
     elif end == "":
         ffmpeg = (
@@ -137,7 +137,7 @@ async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end
             .option("y")
             .option("ss",start)
             .input(inp)
-            .output(output_name)
+            .output(output_name, acodec="copy")
         )
     else:
         ffmpeg = (
@@ -146,7 +146,7 @@ async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end
             .option("ss",start)
             .option("to",end)
             .input(inp)
-            .output(output_name)
+            .output(output_name, acodec="copy")
         )
 
     # Logging handlers
