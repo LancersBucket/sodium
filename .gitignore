@@ -1,6 +1,7 @@
 *.mp3
 build
 dist
+*.spec
 .vscode
 changes.md
 *.stc
