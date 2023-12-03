@@ -14,10 +14,10 @@ from mutagen.aac import AAC
 
 class Global:
     """Globalvar vars"""
+    VERSION = "v1.2.2"
     tag = 0
     numComplete = 0
     errors = 0
-    VERSION = "v1.2.2"
 
 class FD:
     """Data Storage For Loaded File"""
@@ -98,14 +98,14 @@ def timecode_validate(timecode:str) -> str | bool:
         h, m, s = tc.split(":")
     # If it has more than 2, then it is invalid
     elif count_split > 2:
-        return "Format: [HH:]MM:SS.mmm"
+        return "Format: [HH:]MM:SS[.mmm]"
 
     if len(h) > 2:
-        return "Format: [HH:]MM:SS.mmm"
+        return "Format: [HH:]MM:SS[.mmm]"
     if not len(m) == 2:
-        return "Format: [HH:]MM:SS.mmm"
+        return "Format: [HH:]MM:SS[.mmm]"
     if not len(s) == 2:
-        return "Format: [HH:]MM:SS.mmm"
+        return "Format: [HH:]MM:SS[.mmm]"
 
     if int(m) >= 60:
         return "Minutes greater than 59"
@@ -301,14 +301,14 @@ def time_compare(time1: tuple[int], time2: tuple[int]) -> int:
         return 1
     if s1<s2:
         return -1
-    # Compare ms1 and ms2, if they are the same fall through to next check
+    # Compare ms1 and ms2, if they are the same return 0
     if ms1>ms2:
         return 1
     if ms1<ms2:
         return -1
     return 0
 
-def timecode_box(sender,user_data):
+def timecode_box(sender, user_data):
     """Callback to handle and display errors with timecode input"""
     # Checks if Start or End timecode box called it
     if sender.find("Start") > -1:
@@ -320,10 +320,9 @@ def timecode_box(sender,user_data):
 
     # Gets error text, if any
     valid = timecode_validate(user_data)
-
-    # Get other box input and check if it is better or worse you know what I mean
     h, m, s, ms, valid = timecode_parser(user_data)
 
+    # Get other box input and check if it is better or worse you know what I mean
     if err_cause == "Start":
         h2, m2, s2, ms2, valid2 = timecode_parser(dpg.get_value(error_text+"End"))
         if valid2 is True:
@@ -393,8 +392,12 @@ dpg.create_context()
 dpg.create_viewport(title='Sodium ' + Global.VERSION, width=1000, height=600)
 dpg.setup_dearpygui()
 
-def stc_select(sender, app_data):
+def import_file(sender, app_data):
     """Callback to parse and import a STC file"""
+    # Reset status
+    dpg.configure_item("runStatus",color=(255,255,255,255))
+    dpg.set_value("runStatus","")
+
     # Purge all current segments
     segments = dpg.get_item_children("timing")[1]
     for segment in segments:
@@ -444,7 +447,7 @@ def stc_select(sender, app_data):
         dpg.set_value("runStatus", error)
         return
 
-    for i in range(len(file_data)):
+    for i in range(len(file_data[0])):
         add_sec(None, None, None, file_data[0][i], file_data[1][i], file_data[2][i])
 
 def export_file():
@@ -492,7 +495,7 @@ with dpg.file_dialog(label="Select A Music File",tag="musicselect",file_count=1,
     dpg.add_file_extension("",color=(150, 150, 150, 255))
 
 with dpg.file_dialog(label="Select A Sodium Timecode File",tag="fileselect",file_count=1,height=400,width=600,
-                     modal=True,show=False,callback=stc_select):
+                     modal=True,show=False,callback=import_file):
     dpg.add_file_extension("Sodium Timecode (*.stc *.txt){.stc,.txt}")
     dpg.add_file_extension(".stc",color=(0,255,0,255),custom_text="[Timecode]")
     dpg.add_file_extension(".txt",color=(0,255,0,255),custom_text="[Timecode]")
@@ -510,10 +513,10 @@ with dpg.window(label="Sodium",tag="main",no_close=True):
         dpg.add_button(label="Add Section",tag="secButtonAdd",callback=add_sec)
     with dpg.group(tag="timing"):
         pass
-    dpg.add_button(label="Execute",tag="runButt",callback=run_cut,show=False)
+    dpg.add_button(label="Run",tag="runButt",callback=run_cut,show=False)
     with dpg.group(horizontal=True):
         dpg.add_loading_indicator(tag="load", circle_count=6,color=(29, 151, 236, 255),
-                                  secondary_color=(51, 51, 55, 255), speed=2,radius=1.5,show=False)
+                                  secondary_color=(51, 51, 55, 255), speed=2, radius=1.5, show=False)
         dpg.add_text(tag="runStatus")
 
 dpg.set_primary_window("main",True)

@@ -32,6 +32,7 @@ Sodium also supports a .txt file in place of a .stc file
 ## TODO
 - [ ] Improve UI layout
 - [ ] Add more functionality for segment creation
+- [ ] Check if segment times are larger than the file length
 
 ## Contributing
 Your contributions are always welcome! If you encounter any bugs or have a feature idea, put it on the [issues](https://github.com/LancersBucket/sodium/issues) page!
