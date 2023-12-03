@@ -6,3 +6,4 @@ dist
 changes.md
 *.stc
 __pycache__
+*.txt

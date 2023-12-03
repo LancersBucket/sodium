@@ -17,6 +17,7 @@ class Global:
     tag = 0
     numComplete = 0
     errors = 0
+    VERSION = "v1.2.2"
 
 class FD:
     """Data Storage For Loaded File"""
@@ -389,7 +390,7 @@ def add_sec(sender, app_data, user_data, label=None,start=None,end=None):
     Global.tag += 1
 
 dpg.create_context()
-dpg.create_viewport(title='Sodium', width=1000, height=600)
+dpg.create_viewport(title='Sodium ' + Global.VERSION, width=1000, height=600)
 dpg.setup_dearpygui()
 
 def stc_select(sender, app_data):
@@ -402,6 +403,9 @@ def stc_select(sender, app_data):
     # Forgive me father for I have sinned. Sudo give me the key and value.
     file = str(app_data["selections"].keys()).split("['")[1].split("']")[0]
     file_path = str(app_data["selections"].values()).split("['")[1].split("']")[0]
+
+    # 0: label, 1: time_start, 2: time_end
+    file_data = [[],[],[]]
 
     error = False
     count = 1
@@ -416,6 +420,7 @@ def stc_select(sender, app_data):
         label, timecodes = line.split("?")
         time_start, time_end = timecodes.split("-")
 
+        label = label.strip()
         time_start = time_start.strip()
         time_end = time_end.strip()
 
@@ -429,14 +434,20 @@ def stc_select(sender, app_data):
             error = f"Error on line {count} of {file}: End timecode {valid_end}"
             break
 
-        add_sec(None, None, None, label, time_start, time_end)
+        file_data[0].append(label)
+        file_data[1].append(time_start)
+        file_data[2].append(time_end)
         count += 1
 
     if error is not False:
         dpg.configure_item("runStatus",color=(255,0,0,255))
         dpg.set_value("runStatus", error)
+        return
 
-def exportFile():
+    for i in range(len(file_data)):
+        add_sec(None, None, None, file_data[0][i], file_data[1][i], file_data[2][i])
+
+def export_file():
     """Handles exporting the file"""
     segments = dpg.get_item_children("timing")[1]
     with open(dpg.get_value("exportName")+".stc","w",encoding="UTF-8") as file:
@@ -455,7 +466,7 @@ def export_file_window():
             dpg.add_text("Enter a file name:")
             dpg.add_input_text(label=".stc",tag="exportName",width=100)
         with dpg.group(horizontal=True):
-            dpg.add_button(label="Export",tag="exportFileButt",callback=exportFile)
+            dpg.add_button(label="Export",tag="exportFileButt",callback=export_file)
             dpg.add_button(label="Cancel",callback=lambda:dpg.delete_item("tcexportmodal"))
 
     dpg.split_frame()
@@ -487,11 +498,12 @@ with dpg.file_dialog(label="Select A Sodium Timecode File",tag="fileselect",file
     dpg.add_file_extension(".txt",color=(0,255,0,255),custom_text="[Timecode]")
     dpg.add_file_extension("",color=(150, 150, 150, 255))
 
-with dpg.window(label="Carbon",tag="main",no_close=True):
+with dpg.window(label="Sodium",tag="main",no_close=True):
     with dpg.group(horizontal=True):
         dpg.add_button(label="File Select",callback=lambda: dpg.show_item("musicselect"))
         dpg.add_button(label="Import Timecode",tag="importSTC",callback=lambda: dpg.show_item("fileselect"),show=False)
         dpg.add_button(label="Export Timecode",tag="exportSTC",callback=export_file_window,show=False)
+        dpg.add_text("Sodium " + Global.VERSION)
     dpg.add_text("No File Loaded", tag="stat")
     dpg.add_text(tag="filelen")
     with dpg.group(tag="secAddGroup",horizontal=True,show=False):
