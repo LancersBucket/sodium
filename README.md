@@ -16,7 +16,8 @@ Sodium is designed to be a simple and easy program to cut music files into segme
    - Press Disable to disable a segment from being cut
    - Press Run to start cutting the audio segment
 
-In addition, you can also create a .stc (Sodium Timecode) file to import precreated segments. A stc file has three parts to it, a segment label, the start time, and end time. There is one segment per line of the file. A "?" separates the label from the timecodes, and a "-" separates the start and end time code.
+### Importing a file
+You can create a .stc (Sodium Timecode) file to import precreated segments. A stc file has three parts to it, a segment label, the start time, and end time. There is one segment per line of the file. A "?" separates the label from the timecodes, and a "-" separates the start and end time code.
 ```
 [Label]?[Start]-[End]
 ```

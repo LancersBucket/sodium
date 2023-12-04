@@ -25,11 +25,11 @@ class FD:
     filePath = ""
     filelengthS = -1
     timecodeLength = ""
-    parsedTimecode = ["","","","",""]
+    parsedTimecode = ["","","",""]
     fileExt = ""
 
-def timecode_parser(timecode: str) -> tuple:
-    """Parses timecode into h, m, s, and ms"""
+def timecode_parser(timecode: str, retvalid=True) -> tuple:
+    """Parses timecode into h, m, s, and ms, optionally return if parsed timecode is valid"""
     valid = timecode_validate(timecode)
     has_ms = False
     tc = timecode
@@ -52,7 +52,9 @@ def timecode_parser(timecode: str) -> tuple:
     elif count_split == 2:
         h, m, s = tc.split(":")
 
-    return h, m, s, ms, valid
+    if retvalid:
+        return h, m, s, ms, valid
+    return h, m, s, ms
 
 def timecode_validate(timecode:str) -> str | bool:
     """Validates timecode"""
@@ -249,7 +251,7 @@ def music_select(sender, app_data):
     splitfile = FD.file.split(".")
     FD.fileExt = splitfile[len(splitfile)-1]
 
-    # Get song length
+    # Get song length depending on the file type
     match FD.fileExt:
         case "mp3":
             FD.filelengthS = MP3(FD.filePath).info.length
@@ -263,7 +265,7 @@ def music_select(sender, app_data):
             FD.filelengthS = FLAC(FD.filePath).info.length
     FD.filelengthS = round(FD.filelengthS, 3)
     FD.timecodeLength = calc_timecode(FD.filelengthS)
-    FD.parsedTimecode = timecode_parser(FD.timecodeLength)
+    FD.parsedTimecode = timecode_parser(FD.timecodeLength,retvalid=False)
 
     # Display filename, length, and show the buttons to use the program
     dpg.set_value("stat", "Currently loaded file: " + FD.file)
@@ -351,8 +353,7 @@ def timecode_box(sender, user_data):
         dpg.set_value(error_text+"Error",err_cause + " Error: " + valid)
 
     # Checks if timecode is larger than file length and shows a warning if so
-    h2,m2,s2,ms2,valid2 = FD.parsedTimecode
-    if timecode_compare([h,m,s,ms],[h2,m2,s2,ms2]) == 1:
+    if timecode_compare([h,m,s,ms], FD.parsedTimecode) == 1:
         dpg.configure_item(error_text+"Error",color=(255,165,0,255))
         dpg.set_value(error_text+"Error",err_cause + " Warning: Timecode larger than file length")
 
@@ -476,8 +477,10 @@ def export_file_window():
             dpg.add_button(label="Export",tag="exportFileButt",callback=export_file)
             dpg.add_button(label="Cancel",callback=lambda:dpg.delete_item("tcexportmodal"))
 
+    # Force next render frame so window shows up and size can be calculated
     dpg.split_frame()
 
+    # Get move window to middle of screen
     width = dpg.get_item_width("tcexportmodal")
     height = dpg.get_item_height("tcexportmodal")
 
@@ -486,6 +489,7 @@ def export_file_window():
 
     dpg.configure_item("tcexportmodal",pos=pos)
 
+# Initalizing dpg
 dpg.create_context()
 dpg.create_viewport(title='Sodium ' + Global.VERSION, width=1000, height=600)
 dpg.setup_dearpygui()
@@ -501,6 +505,7 @@ with dpg.file_dialog(label="Select A Music File",tag="musicselect",file_count=1,
     dpg.add_file_extension(".flac",color=(0,255,0,255),custom_text="[FLAC]")
     dpg.add_file_extension("",color=(150, 150, 150, 255))
 
+# Import diag
 with dpg.file_dialog(label="Select A Sodium Timecode File",tag="fileselect",file_count=1,height=400,width=600,
                      modal=True,show=False,callback=import_file):
     dpg.add_file_extension("Sodium Timecode (*.stc *.txt){.stc,.txt}")
@@ -508,7 +513,9 @@ with dpg.file_dialog(label="Select A Sodium Timecode File",tag="fileselect",file
     dpg.add_file_extension(".txt",color=(0,255,0,255),custom_text="[Timecode]")
     dpg.add_file_extension("",color=(150, 150, 150, 255))
 
+# Main window
 with dpg.window(label="Sodium",tag="main",no_close=True):
+    # Top row of buttons and file info
     with dpg.group(horizontal=True):
         dpg.add_button(label="File Select",callback=lambda: dpg.show_item("musicselect"))
         dpg.add_button(label="Import Timecode",tag="importSTC",callback=lambda: dpg.show_item("fileselect"),show=False)
@@ -516,16 +523,21 @@ with dpg.window(label="Sodium",tag="main",no_close=True):
         dpg.add_text("Sodium " + Global.VERSION)
     dpg.add_text("No File Loaded", tag="stat")
     dpg.add_text(tag="filelen")
+
+    # Segment area
     with dpg.group(tag="secAddGroup",horizontal=True,show=False):
         dpg.add_button(label="Add Section",tag="secButtonAdd",callback=add_sec)
     with dpg.group(tag="timing"):
         pass
+
+    # Run button and loading text
     dpg.add_button(label="Run",tag="runButt",callback=run_cut,show=False)
     with dpg.group(horizontal=True):
         dpg.add_loading_indicator(tag="load", circle_count=6,color=(29, 151, 236, 255),
                                   secondary_color=(51, 51, 55, 255), speed=2, radius=1.5, show=False)
         dpg.add_text(tag="runStatus")
 
+# Set primary window to the main window and start dpg
 dpg.set_primary_window("main",True)
 dpg.show_viewport()
 dpg.start_dearpygui()
