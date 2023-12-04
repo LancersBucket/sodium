@@ -25,6 +25,7 @@ class FD:
     filePath = ""
     filelengthS = -1
     timecodeLength = ""
+    parsedTimecode = ["","","","",""]
     fileExt = ""
 
 def timecode_parser(timecode: str) -> tuple:
@@ -262,6 +263,7 @@ def music_select(sender, app_data):
             FD.filelengthS = FLAC(FD.filePath).info.length
     FD.filelengthS = round(FD.filelengthS, 3)
     FD.timecodeLength = calc_timecode(FD.filelengthS)
+    FD.parsedTimecode = timecode_parser(FD.timecodeLength)
 
     # Display filename, length, and show the buttons to use the program
     dpg.set_value("stat", "Currently loaded file: " + FD.file)
@@ -281,7 +283,7 @@ def output_toggle(sender):
     else:
         dpg.set_item_label(sender,"Enabled")
 
-def time_compare(time1: tuple[int], time2: tuple[int]) -> int:
+def timecode_compare(time1: tuple[int], time2: tuple[int]) -> int:
     """1 for time1 being larger than time2, 0 if they are the same, -1 if time2 is larger than time1"""
     h1, m1, s1, ms1 = time1
     h2, m2, s2, ms2 = time2
@@ -326,7 +328,7 @@ def timecode_box(sender, user_data):
     if err_cause == "Start":
         h2, m2, s2, ms2, valid2 = timecode_parser(dpg.get_value(error_text+"End"))
         if valid2 is True:
-            compared = time_compare((h,m,s,ms),(h2,m2,s2,ms2))
+            compared = timecode_compare((h,m,s,ms),(h2,m2,s2,ms2))
             if compared == 1:
                 valid = "Start time is greater than end time"
             elif compared == 0:
@@ -334,7 +336,7 @@ def timecode_box(sender, user_data):
     if err_cause == "End":
         h2, m2, s2, ms2, valid2 = timecode_parser(dpg.get_value(error_text+"Start"))
         if valid2 is True:
-            compared = time_compare((h,m,s,ms),(h2,m2,s2,ms2))
+            compared = timecode_compare((h,m,s,ms),(h2,m2,s2,ms2))
             if compared == -1:
                 valid = "Start time is greater than end time"
             elif compared == 0:
@@ -347,6 +349,12 @@ def timecode_box(sender, user_data):
     else:
         dpg.configure_item(error_text+"Error",color=(255,0,0,255))
         dpg.set_value(error_text+"Error",err_cause + " Error: " + valid)
+
+    # Checks if timecode is larger than file length and shows a warning if so
+    h2,m2,s2,ms2,valid2 = FD.parsedTimecode
+    if timecode_compare([h,m,s,ms],[h2,m2,s2,ms2]) == 1:
+        dpg.configure_item(error_text+"Error",color=(255,165,0,255))
+        dpg.set_value(error_text+"Error",err_cause + " Warning: Timecode larger than file length")
 
 def add_sec(sender, app_data, user_data, label=None,start=None,end=None):
     """Adds a section in the segment list"""
@@ -387,10 +395,6 @@ def add_sec(sender, app_data, user_data, label=None,start=None,end=None):
         dpg.add_button(label="Delete",tag=loctag+"Remove",callback=lambda:dpg.delete_item(loctag))
         dpg.add_text(tag=loctag+"Error")
     Global.tag += 1
-
-dpg.create_context()
-dpg.create_viewport(title='Sodium ' + Global.VERSION, width=1000, height=600)
-dpg.setup_dearpygui()
 
 def import_file(sender, app_data):
     """Callback to parse and import a STC file"""
@@ -482,6 +486,9 @@ def export_file_window():
 
     dpg.configure_item("tcexportmodal",pos=pos)
 
+dpg.create_context()
+dpg.create_viewport(title='Sodium ' + Global.VERSION, width=1000, height=600)
+dpg.setup_dearpygui()
 
 # Creates file diag thats shows when you open the app
 with dpg.file_dialog(label="Select A Music File",tag="musicselect",file_count=1,height=400,width=600,

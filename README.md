@@ -30,9 +30,9 @@ Song 4?03:00-04:15
 Sodium also supports a .txt file in place of a .stc file 
 
 ## TODO
-- [ ] Improve UI layout
 - [ ] Add more functionality for segment creation
-- [ ] Check if segment times are larger than the file length
+- [ ] Improve UI layout
+- [ ] Make a command line version for fast segmenting
 
 ## Contributing
 Your contributions are always welcome! If you encounter any bugs or have a feature idea, put it on the [issues](https://github.com/LancersBucket/sodium/issues) page!
