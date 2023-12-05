@@ -25,10 +25,11 @@ class FD:
     filePath = ""
     filelengthS = -1
     timecodeLength = ""
+    # Hours, Minutes, Seconds, MS
     parsedTimecode = ["","","",""]
     fileExt = ""
 
-def timecode_parser(timecode: str, retvalid=True) -> tuple:
+def timecode_parser(timecode: str, retvalid: bool = True) -> tuple[str]:
     """Parses timecode into h, m, s, and ms, optionally return if parsed timecode is valid"""
     valid = timecode_validate(timecode)
     has_ms = False
@@ -56,7 +57,7 @@ def timecode_parser(timecode: str, retvalid=True) -> tuple:
         return h, m, s, ms, valid
     return h, m, s, ms
 
-def timecode_validate(timecode:str) -> str | bool:
+def timecode_validate(timecode: str) -> str | bool:
     """Validates timecode"""
     has_ms = False
     tc = timecode
@@ -89,8 +90,8 @@ def timecode_validate(timecode:str) -> str | bool:
     # Count number of : in tc
     count_split = tc.count(":")
 
-    # If 0, invalid
-    if count_split == 0:
+    # If 0 or more than 2, invalid
+    if (count_split == 0) or (count_split > 2):
         return "Format: [HH:]MM:SS.mmm"
 
     # If 1, then it only has minutes and second
@@ -99,15 +100,8 @@ def timecode_validate(timecode:str) -> str | bool:
     # If it is 2, then it has hr, min, and sec
     elif count_split == 2:
         h, m, s = tc.split(":")
-    # If it has more than 2, then it is invalid
-    elif count_split > 2:
-        return "Format: [HH:]MM:SS[.mmm]"
 
-    if len(h) > 2:
-        return "Format: [HH:]MM:SS[.mmm]"
-    if not len(m) == 2:
-        return "Format: [HH:]MM:SS[.mmm]"
-    if not len(s) == 2:
+    if (len(h) > 2) or (not len(m) == 2) or (not len(s) == 2):
         return "Format: [HH:]MM:SS[.mmm]"
 
     if int(m) >= 60:
@@ -117,11 +111,38 @@ def timecode_validate(timecode:str) -> str | bool:
 
     return True
 
-def calc_timecode(len_seconds: float) -> str:
+def timecode_calculate(len_seconds: float) -> str:
     """Calculates timecode from given length in seconds"""
     return str(timedelta(seconds=len_seconds)).split("000",maxsplit=1)[0]
 
-async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end=""):
+def timecode_compare(time1: tuple[int], time2: tuple[int]) -> int:
+    """1 for time1 being larger than time2, 0 if they are the same, -1 if time2 is larger than time1"""
+    h1, m1, s1, ms1 = time1
+    h2, m2, s2, ms2 = time2
+
+    # Compare h1 and h2, if they are the same fall through to next check
+    if h1>h2:
+        return 1
+    if h1<h2:
+        return -1
+    # Compare m1 and m2, if they are the same fall through to next check
+    if m1>m2:
+        return 1
+    if m1<m2:
+        return -1
+    # Compare s1 and s2, if they are the same fall through to next check
+    if s1>s2:
+        return 1
+    if s1<s2:
+        return -1
+    # Compare ms1 and ms2, if they are the same return 0
+    if ms1>ms2:
+        return 1
+    if ms1<ms2:
+        return -1
+    return 0
+
+async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end="") -> None:
     """Main ffmpeg function to segment a given file"""
     dpg.configure_item(caller+"Error",color=(255,255,255,255))
     output_name = outname+"."+ext
@@ -192,7 +213,7 @@ async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end
         Global.errors += 1
         print(e)
 
-def run_cut():
+def run_cut() -> None:
     """Callback to run ffmpeg segment cuts"""
     dpg.hide_item("runButt")
     # Get segements internal id
@@ -228,52 +249,55 @@ def run_cut():
     # String formatting for final status, and resets counters
     seg_str = "segment" if Global.numComplete == 1 else "segements"
     err_str = "error" if Global.errors == 1 else "errors"
-    output = "Completed {numComplete} {seg_str} with {errors} {err_str}."
-    output = output.format(numComplete=Global.numComplete,seg_str=seg_str,errors=Global.errors,err_str=err_str)
-    dpg.set_value("runStatus",output)
+    output = f"Completed {Global.numComplete} {seg_str} with {Global.errors} {err_str}."
+    dpg.set_value("runStatus", output)
     Global.numComplete = 0
     Global.errors = 0
 
+def sudo_keyvalue(dat: dict) -> tuple[str]:
+    """Returns first key and value of dict"""
+    # Forgive me father for I have sinned. Sudo give me the key and value.
+    return (str(dat.keys()).split("['")[1].split("']")[0],
+            str(dat.values()).split("['")[1].split("']")[0])
+
 def music_select(sender, app_data):
     """File selecter callbacks"""
-
     # Reset segment label color to white
     segments = dpg.get_item_children("timing")[1]
     for segment in segments:
         dpg.configure_item(dpg.get_item_alias(segment)+"colLab",color=(255,255,255,255))
         dpg.delete_item(dpg.get_item_alias(segment)+"Error")
 
-    # Forgive me father for I have sinned. Sudo give me the key and value.
-    FD.file = str(app_data["selections"].keys()).split("['")[1].split("']")[0]
-    FD.filePath = str(app_data["selections"].values()).split("['")[1].split("']")[0]
+    FD.file, FD.filePath = sudo_keyvalue(app_data["selections"])
 
     # Get file extension
     splitfile = FD.file.split(".")
     FD.fileExt = splitfile[len(splitfile)-1]
 
     # Get song length depending on the file type
+    file_length = -1
     match FD.fileExt:
         case "mp3":
-            FD.filelengthS = MP3(FD.filePath).info.length
+            file_length = MP3(FD.filePath).info.length
         case "wav":
-            FD.filelengthS = WAVE(FD.filePath).info.length
+            file_length = WAVE(FD.filePath).info.length
         case "aac":
-            FD.filelengthS = AAC(FD.filePath).info.length
+            file_length = AAC(FD.filePath).info.length
         case "ogg":
-            FD.filelengthS = OggVorbis(FD.filePath).info.length
+            file_length = OggVorbis(FD.filePath).info.length
         case "flac":
-            FD.filelengthS = FLAC(FD.filePath).info.length
-    FD.filelengthS = round(FD.filelengthS, 3)
-    FD.timecodeLength = calc_timecode(FD.filelengthS)
+            file_length = FLAC(FD.filePath).info.length
+    FD.filelengthS = round(file_length, 3)
+    FD.timecodeLength = timecode_calculate(FD.filelengthS)
     FD.parsedTimecode = timecode_parser(FD.timecodeLength,retvalid=False)
 
     # Display filename, length, and show the buttons to use the program
     dpg.set_value("stat", "Currently loaded file: " + FD.file)
-    dpg.set_value('filelen',"File length: " + FD.timecodeLength + " (" + str(FD.filelengthS)+" seconds)")
+    dpg.set_value("filelen",f"File length: {FD.timecodeLength} ({FD.filelengthS} seconds)")
     dpg.show_item("secAddGroup")
     dpg.show_item("runButt")
 
-    # Enable importing/exporting STC file
+    # Enable importing/exporting STC file buttons
     dpg.show_item("importSTC")
     dpg.show_item("exportSTC")
 
@@ -284,33 +308,6 @@ def output_toggle(sender):
         dpg.set_value(sender.split("Butt")[0]+"Error","")
     else:
         dpg.set_item_label(sender,"Enabled")
-
-def timecode_compare(time1: tuple[int], time2: tuple[int]) -> int:
-    """1 for time1 being larger than time2, 0 if they are the same, -1 if time2 is larger than time1"""
-    h1, m1, s1, ms1 = time1
-    h2, m2, s2, ms2 = time2
-
-    # Compare h1 and h2, if they are the same fall through to next check
-    if h1>h2:
-        return 1
-    if h1<h2:
-        return -1
-    # Compare m1 and m2, if they are the same fall through to next check
-    if m1>m2:
-        return 1
-    if m1<m2:
-        return -1
-    # Compare s1 and s2, if they are the same fall through to next check
-    if s1>s2:
-        return 1
-    if s1<s2:
-        return -1
-    # Compare ms1 and ms2, if they are the same return 0
-    if ms1>ms2:
-        return 1
-    if ms1<ms2:
-        return -1
-    return 0
 
 def timecode_box(sender, user_data):
     """Callback to handle and display errors with timecode input"""
@@ -355,9 +352,9 @@ def timecode_box(sender, user_data):
     # Checks if timecode is larger than file length and shows a warning if so
     if timecode_compare([h,m,s,ms], FD.parsedTimecode) == 1:
         dpg.configure_item(error_text+"Error",color=(255,165,0,255))
-        dpg.set_value(error_text+"Error",err_cause + " Warning: Timecode larger than file length")
+        dpg.set_value(error_text+"Error",f"{err_cause} Warning: Timecode larger than file length")
 
-def add_sec(sender, app_data, user_data, label=None,start=None,end=None):
+def add_sec(sender, app_data, user_data, label: str = None, start: str = None, end: str = None) -> None:
     """Adds a section in the segment list"""
     # Generates friendly readable name
     loctag = "tc"+str(Global.tag)
@@ -375,7 +372,7 @@ def add_sec(sender, app_data, user_data, label=None,start=None,end=None):
     with dpg.group(parent="timing",horizontal=True,tag=loctag):
         dpg.add_text("Label:",tag=loctag+"colLab")
         if label is None:
-            dpg.add_input_text(default_value=str(Global.tag)+" ",tag=loctag+"Lab",width=150)
+            dpg.add_input_text(default_value=f"{Global.tag} ",tag=loctag+"Lab",width=150)
         else:
             dpg.add_input_text(default_value=label,tag=loctag+"Lab",width=150)
         dpg.add_text("Start:")
@@ -392,7 +389,7 @@ def add_sec(sender, app_data, user_data, label=None,start=None,end=None):
         else:
             dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=end,tag=loctag+"End",
                                width=100,callback=timecode_box)
-        dpg.add_button(label="Enabled",tag=(loctag+"Butt"), callback=output_toggle)
+        dpg.add_button(label="Enabled",tag=loctag+"Butt", callback=output_toggle)
         dpg.add_button(label="Delete",tag=loctag+"Remove",callback=lambda:dpg.delete_item(loctag))
         dpg.add_text(tag=loctag+"Error")
     Global.tag += 1
@@ -408,21 +405,20 @@ def import_file(sender, app_data):
     for segment in segments:
         dpg.delete_item(segment)
 
-    # Forgive me father for I have sinned. Sudo give me the key and value.
-    file = str(app_data["selections"].keys()).split("['")[1].split("']")[0]
-    file_path = str(app_data["selections"].values()).split("['")[1].split("']")[0]
+    file, file_path = sudo_keyvalue(app_data["selections"])
 
-    # 0: label, 1: time_start, 2: time_end
-    file_data = [[],[],[]]
+    label_arr = []
+    time_start_arr = []
+    time_end_arr = []
 
     error = False
     count = 1
     for line in open(file_path,"r",encoding="UTF-8").readlines():
         if line.find("?") <= 0:
-            error = f"Error on line {count} of {file}: Missing ?".format(count=count,file=file)
+            error = f"Error on line {count} of {file}: Missing '?'"
             break
         if line.find("-") <= 0:
-            error = f"Error on line {count} of {file}: Missing -".format(count=count,file=file)
+            error = f"Error on line {count} of {file}: Missing '-'"
             break
 
         label, timecodes = line.split("?")
@@ -442,9 +438,9 @@ def import_file(sender, app_data):
             error = f"Error on line {count} of {file}: End timecode {valid_end}"
             break
 
-        file_data[0].append(label)
-        file_data[1].append(time_start)
-        file_data[2].append(time_end)
+        label_arr.append(label)
+        time_start_arr.append(time_start)
+        time_end_arr.append(time_end)
         count += 1
 
     if error is not False:
@@ -452,8 +448,8 @@ def import_file(sender, app_data):
         dpg.set_value("runStatus", error)
         return
 
-    for i in range(len(file_data[0])):
-        add_sec(None, None, None, file_data[0][i], file_data[1][i], file_data[2][i])
+    for i in enumerate(label_arr):
+        add_sec(None, None, None, label_arr[i], time_start_arr[i], time_end_arr[i])
 
 def export_file():
     """Handles exporting the file"""
@@ -491,7 +487,7 @@ def export_file_window():
 
 # Initalizing dpg
 dpg.create_context()
-dpg.create_viewport(title='Sodium ' + Global.VERSION, width=1000, height=600)
+dpg.create_viewport(title=f"Sodium {Global.VERSION}", width=1000, height=600)
 dpg.setup_dearpygui()
 
 # Creates file diag thats shows when you open the app
@@ -517,10 +513,10 @@ with dpg.file_dialog(label="Select A Sodium Timecode File",tag="fileselect",file
 with dpg.window(label="Sodium",tag="main",no_close=True):
     # Top row of buttons and file info
     with dpg.group(horizontal=True):
-        dpg.add_button(label="File Select",callback=lambda: dpg.show_item("musicselect"))
-        dpg.add_button(label="Import Timecode",tag="importSTC",callback=lambda: dpg.show_item("fileselect"),show=False)
+        dpg.add_button(label="File Select",callback=lambda:dpg.show_item("musicselect"))
+        dpg.add_button(label="Import Timecode",tag="importSTC",callback=lambda:dpg.show_item("fileselect"),show=False)
         dpg.add_button(label="Export Timecode",tag="exportSTC",callback=export_file_window,show=False)
-        dpg.add_text("Sodium " + Global.VERSION)
+        dpg.add_text(f"Sodium {Global.VERSION}")
     dpg.add_text("No File Loaded", tag="stat")
     dpg.add_text(tag="filelen")
 
