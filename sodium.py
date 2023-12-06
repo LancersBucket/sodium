@@ -14,7 +14,7 @@ from mutagen.aac import AAC
 
 class Global:
     """Globalvar vars"""
-    VERSION = "v1.2.2"
+    VERSION = "v1.3.0"
     tag = 0
     numComplete = 0
     errors = 0
@@ -34,10 +34,10 @@ def timecode_parser(timecode: str, retvalid: bool = True) -> tuple[str]:
     valid = timecode_validate(timecode)
     has_ms = False
     tc = timecode
-    h = ""
-    m = ""
-    s = ""
-    ms = ""
+    h = "0"
+    m = "0"
+    s = "0"
+    ms = "0"
 
     # If a timecode has a . split timecode into everything else and the ms
     count_ms = timecode.count(".")
@@ -101,7 +101,7 @@ def timecode_validate(timecode: str) -> str | bool:
     elif count_split == 2:
         h, m, s = tc.split(":")
 
-    if (len(h) > 2) or (not len(m) == 2) or (not len(s) == 2):
+    if (len(h) > 2) or (len(m) < 1) or (len(m) > 2) or (not len(s) == 2):
         return "Format: [HH:]MM:SS[.mmm]"
 
     if int(m) >= 60:
@@ -413,42 +413,77 @@ def import_file(sender, app_data):
 
     error = False
     count = 1
+
+    # Mode 0: STC format; Mode 1: Youtube Format
+    mode = 0
     for line in open(file_path,"r",encoding="UTF-8").readlines():
-        if line.find("?") <= 0:
-            error = f"Error on line {count} of {file}: Missing '?'"
-            break
-        if line.find("-") <= 0:
-            error = f"Error on line {count} of {file}: Missing '-'"
-            break
+        if count == 1 and line.strip() == "V2":
+            mode = 1
+        break
 
-        label, timecodes = line.split("?")
-        time_start, time_end = timecodes.split("-")
+    if mode == 0:
+        for line in open(file_path,"r",encoding="UTF-8").readlines():
+            if line.find("?") < 0:
+                error = f"Error on line {count} of {file}: Missing '?'"
+                break
+            if line.find("-") < 0:
+                error = f"Error on line {count} of {file}: Missing '-'"
+                break
 
-        label = label.strip()
-        time_start = time_start.strip()
-        time_end = time_end.strip()
+            label, timecodes = line.split("?")
+            time_start, time_end = timecodes.split("-")
 
-        valid_start = timecode_validate(time_start)
-        valid_end = timecode_validate(time_end)
+            label = label.strip()
+            time_start = time_start.strip()
+            time_end = time_end.strip()
 
-        if valid_start is not True:
-            error = f"Error on line {count} of {file}: Start timecode {valid_start}"
-            break
-        if valid_end is not True:
-            error = f"Error on line {count} of {file}: End timecode {valid_end}"
-            break
+            valid_start = timecode_validate(time_start)
+            valid_end = timecode_validate(time_end)
 
-        label_arr.append(label)
-        time_start_arr.append(time_start)
-        time_end_arr.append(time_end)
-        count += 1
+            if valid_start is not True:
+                error = f"Error on line {count} of {file}: Start timecode {valid_start}"
+                break
+            if valid_end is not True:
+                error = f"Error on line {count} of {file}: End timecode {valid_end}"
+                break
+
+            label_arr.append(label)
+            time_start_arr.append(time_start)
+            time_end_arr.append(time_end)
+            count += 1
+    if mode == 1:
+        for line in open(file_path,"r",encoding="UTF-8").readlines():
+            text = line.strip().split(" ")
+            print(text)
+            if line.find("V2") >= 0:
+                continue
+            timecode = text.pop(0).rstrip(":")
+            print(timecode)
+
+            lab = " ".join(text).strip().lstrip(" -")
+
+            valid_start = timecode_validate(timecode)
+
+            if valid_start is not True:
+                error = f"Error on line {count} of {file}: {valid_start}"
+                break
+
+            label_arr.append(lab)
+            time_start_arr.append(timecode)
+            count += 1
+
+        for i in range(len(time_start_arr)):
+            try:
+                time_end_arr.append(time_start_arr[i+1])
+            except IndexError:
+                time_end_arr.append(FD.timecodeLength)
 
     if error is not False:
         dpg.configure_item("runStatus",color=(255,0,0,255))
         dpg.set_value("runStatus", error)
         return
 
-    for i in enumerate(label_arr):
+    for i in range(len(label_arr)):
         add_sec(None, None, None, label_arr[i], time_start_arr[i], time_end_arr[i])
 
 def export_file():
