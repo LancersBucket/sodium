@@ -31,9 +31,9 @@ Song 4?03:00-04:15
 
 Alternatively, Sodium supports using youtube style timestamps in the following forms. The end timestamp for the segment will be generated from the start timestamp of the next segment, or the file length for the last segment. Using this format REQUIRES a V2 on the first line of the file.
 ```
-[Label] [Start]
-[Label] - [Start]
-[Label]: [Start]
+[Start] [Label] 
+[Start] - [Label]
+[Start]: [Label]
 ```
 An example file looks as follows:
 ```
