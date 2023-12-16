@@ -454,11 +454,9 @@ def import_file(sender, app_data):
     if mode == 1:
         for line in open(file_path,"r",encoding="UTF-8").readlines():
             text = line.strip().split(" ")
-            print(text)
             if line.find("V2") >= 0:
                 continue
             timecode = text.pop(0).rstrip(":")
-            print(timecode)
 
             lab = " ".join(text).strip().lstrip(" -")
 
@@ -471,6 +469,10 @@ def import_file(sender, app_data):
             label_arr.append(lab)
             time_start_arr.append(timecode)
             count += 1
+
+        if dpg.get_value("imp_Numbering"):
+            for i in range(len(label_arr)):
+                label_arr[i] = f"{i+1} " + label_arr[i]
 
         for i in range(len(time_start_arr)):
             try:
@@ -520,6 +522,13 @@ def export_file_window():
 
     dpg.configure_item("tcexportmodal",pos=pos)
 
+def toggle_all_segments():
+    """Goes through each segment and toggles the status"""
+    segments = dpg.get_item_children("timing")[1]
+    for segment in segments:
+        segtag = dpg.get_item_alias(segment)
+        output_toggle(segtag+"Butt")
+
 # Initalizing dpg
 dpg.create_context()
 dpg.create_viewport(title=f"Sodium {Global.VERSION}", width=1000, height=600)
@@ -537,12 +546,15 @@ with dpg.file_dialog(label="Select A Music File",tag="musicselect",file_count=1,
     dpg.add_file_extension("",color=(150, 150, 150, 255))
 
 # Import diag
-with dpg.file_dialog(label="Select A Sodium Timecode File",tag="fileselect",file_count=1,height=400,width=600,
+with dpg.file_dialog(label="Select A Sodium Timecode File",tag="fileselect",file_count=1,height=400,width=800,
                      modal=True,show=False,callback=import_file):
     dpg.add_file_extension("Sodium Timecode (*.stc *.txt){.stc,.txt}")
     dpg.add_file_extension(".stc",color=(0,255,0,255),custom_text="[Timecode]")
     dpg.add_file_extension(".txt",color=(0,255,0,255),custom_text="[Timecode]")
     dpg.add_file_extension("",color=(150, 150, 150, 255))
+    #with dpg.group(width=100):
+    dpg.add_text("Import Options:")
+    dpg.add_checkbox(label="Segment Numbering",tag="imp_Numbering")
 
 # Main window
 with dpg.window(label="Sodium",tag="main",no_close=True):
@@ -558,6 +570,7 @@ with dpg.window(label="Sodium",tag="main",no_close=True):
     # Segment area
     with dpg.group(tag="secAddGroup",horizontal=True,show=False):
         dpg.add_button(label="Add Section",tag="secButtonAdd",callback=add_sec)
+        dpg.add_button(label="Enable/Disable All Sections",callback=toggle_all_segments)
     with dpg.group(tag="timing"):
         pass
 
