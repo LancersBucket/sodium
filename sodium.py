@@ -14,7 +14,7 @@ from mutagen.aac import AAC
 
 class Global:
     """Globalvar vars"""
-    VERSION = "v1.3.1"
+    VERSION = "v1.3.2"
     tag = 0
     numComplete = 0
     errors = 0
@@ -257,8 +257,17 @@ def run_cut() -> None:
 def sudo_keyvalue(dat: dict) -> tuple[str]:
     """Returns first key and value of dict"""
     # Forgive me father for I have sinned. Sudo give me the key and value.
+
+    # This is the most disgusting patch I've ever had to write
+    # If dat forced into a string contains {" it has a ' in the file name, and fliped string delimiters
+    # Otherwise it has {' and does not have a ' in the file name.
+    # Do not look at this, ever.
+    if '{"' in str(dat):
+        return (str(dat.keys()).split('["')[1].split('"]')[0],
+            str(dat.values()).split('["')[1].split('"]')[0])
+
     return (str(dat.keys()).split("['")[1].split("']")[0],
-            str(dat.values()).split("['")[1].split("']")[0])
+        str(dat.values()).split("['")[1].split("']")[0])
 
 def music_select(sender, app_data):
     """File selecter callbacks"""
