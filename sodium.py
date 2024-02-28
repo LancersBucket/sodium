@@ -1,4 +1,5 @@
 """Module Imports"""
+import os
 from re import compile as regex_compile
 from sys import exit as sys_exit
 from datetime import timedelta
@@ -237,9 +238,15 @@ def run_cut() -> None:
         if dpg.get_item_label(segtag+"Butt") == "Disabled":
             dpg.configure_item(segtag+"colLab",color=(150,150,150,255))
             continue
-        # Run ffmpeg asyncronously
-        asyncio.run(ffmpeg_cut(FD.filePath,outname=(FD.folderPath+dpg.get_value(segtag+"Lab")),caller=segtag,ext=FD.fileExt,
-                               start=dpg.get_value(segtag+"Start"),end=dpg.get_value(segtag+"End")))
+
+        # Run ffmpeg asyncronously and make the output folder if needed
+        outputdir = os.path.join(FD.folderPath,dpg.get_value("JobName"))
+        if not os.path.isdir(outputdir):
+            os.mkdir(outputdir)
+        asyncio.run(ffmpeg_cut(FD.filePath,
+                               outname=(os.path.join(outputdir,dpg.get_value(segtag+"Lab"))),
+                               caller=segtag,ext=FD.fileExt,start=dpg.get_value(segtag+"Start"),
+                               end=dpg.get_value(segtag+"End")))
         dpg.set_value("runStatus","Running... ({done}/{total})".format(
             done=Global.numComplete+Global.errors,total=len(segments)))
     # Set final status to green
@@ -279,7 +286,8 @@ def music_select(sender, app_data):
         dpg.delete_item(dpg.get_item_alias(segment)+"Error")
 
     FD.file, FD.filePath = sudo_keyvalue(app_data["selections"])
-    
+
+    # Get the folder path, excluding the file name
     splt = FD.filePath.split("\\")
     FD.folderPath = ""
     for i in range(len(splt)-1):
@@ -288,6 +296,16 @@ def music_select(sender, app_data):
     # Get file extension
     splitfile = FD.file.split(".")
     FD.fileExt = splitfile[len(splitfile)-1]
+
+    # Set the job name
+    jobname = splitfile[0]+"-split"
+    job_name_new = jobname
+    inc = 0
+    while os.path.isdir(os.path.join(FD.folderPath,job_name_new)):
+        inc += 1
+        job_name_new = jobname+f"_{inc}"
+
+    dpg.set_value("JobName",job_name_new)
 
     # Get song length depending on the file type
     file_length = -1
@@ -581,6 +599,9 @@ with dpg.window(label="Sodium",tag="main",no_close=True):
         dpg.add_text(f"Sodium {Global.VERSION}")
     dpg.add_text("No File Loaded", tag="stat")
     dpg.add_text(tag="filelen")
+    with dpg.group(horizontal=True):
+        dpg.add_text("Job Name:")
+        dpg.add_input_text(tag="JobName",width=400)
 
     # Segment area
     with dpg.group(tag="secAddGroup",horizontal=True,show=False):
