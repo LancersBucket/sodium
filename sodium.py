@@ -23,6 +23,7 @@ class FD:
     """Data Storage For Loaded File"""
     file = ""
     filePath = ""
+    folderPath = ""
     filelengthS = -1
     timecodeLength = ""
     # Hours, Minutes, Seconds, MS
@@ -237,7 +238,7 @@ def run_cut() -> None:
             dpg.configure_item(segtag+"colLab",color=(150,150,150,255))
             continue
         # Run ffmpeg asyncronously
-        asyncio.run(ffmpeg_cut(FD.filePath,outname=dpg.get_value(segtag+"Lab"),caller=segtag,ext=FD.fileExt,
+        asyncio.run(ffmpeg_cut(FD.filePath,outname=(FD.folderPath+dpg.get_value(segtag+"Lab")),caller=segtag,ext=FD.fileExt,
                                start=dpg.get_value(segtag+"Start"),end=dpg.get_value(segtag+"End")))
         dpg.set_value("runStatus","Running... ({done}/{total})".format(
             done=Global.numComplete+Global.errors,total=len(segments)))
@@ -278,6 +279,11 @@ def music_select(sender, app_data):
         dpg.delete_item(dpg.get_item_alias(segment)+"Error")
 
     FD.file, FD.filePath = sudo_keyvalue(app_data["selections"])
+    
+    splt = FD.filePath.split("\\")
+    FD.folderPath = ""
+    for i in range(len(splt)-1):
+        FD.folderPath += splt[i] + "\\"
 
     # Get file extension
     splitfile = FD.file.split(".")
