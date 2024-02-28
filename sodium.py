@@ -222,8 +222,7 @@ def run_cut() -> None:
     segments = dpg.get_item_children("timing")[1]
     # Set final status to white text
     dpg.configure_item("runStatus",color=(255,255,255,255))
-    dpg.set_value("runStatus","Running... ({done}/{total})".format(
-        done=Global.numComplete+Global.errors,total=len(segments)))
+    dpg.set_value("runStatus",f"Running... ({Global.numComplete+Global.errors}/{len(segments)})")
     dpg.show_item("load")
     # Reset segment label color to white
     for segment in segments:
@@ -247,8 +246,7 @@ def run_cut() -> None:
                                outname=(os.path.join(outputdir,dpg.get_value(segtag+"Lab"))),
                                caller=segtag,ext=FD.fileExt,start=dpg.get_value(segtag+"Start"),
                                end=dpg.get_value(segtag+"End")))
-        dpg.set_value("runStatus","Running... ({done}/{total})".format(
-            done=Global.numComplete+Global.errors,total=len(segments)))
+        dpg.set_value("runStatus",f"Running... ({Global.numComplete+Global.errors}/{len(segments)})")
     # Set final status to green
     dpg.configure_item("runStatus",color=(0,255,0,255))
     dpg.hide_item("load")
@@ -277,8 +275,8 @@ def sudo_keyvalue(dat: dict) -> tuple[str]:
     return (str(dat.keys()).split("['")[1].split("']")[0],
         str(dat.values()).split("['")[1].split("']")[0])
 
-def music_select(sender, app_data):
-    """File selecter callbacks"""
+def music_file_selected(_sender, app_data):
+    """Music file selecter callback"""
     # Reset segment label color to white
     segments = dpg.get_item_children("timing")[1]
     for segment in segments:
@@ -334,7 +332,7 @@ def music_select(sender, app_data):
     dpg.show_item("importSTC")
     dpg.show_item("exportSTC")
 
-def output_toggle(sender):
+def enable_disable_toggle(sender):
     """Toggles the label on the enable/disable segment button"""
     if dpg.get_item_label(sender) == "Enabled":
         dpg.set_item_label(sender,"Disabled")
@@ -387,7 +385,7 @@ def timecode_box(sender, user_data):
         dpg.configure_item(error_text+"Error",color=(255,165,0,255))
         dpg.set_value(error_text+"Error",f"{err_cause} Warning: Timecode larger than file length")
 
-def add_sec(sender, app_data, user_data, label: str = None, start: str = None, end: str = None) -> None:
+def add_section(_sender, _app_data, _user_data, label: str = None, start: str = None, end: str = None) -> None:
     """Adds a section in the segment list"""
     # Generates friendly readable name
     loctag = "tc"+str(Global.tag)
@@ -422,12 +420,12 @@ def add_sec(sender, app_data, user_data, label: str = None, start: str = None, e
         else:
             dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=end,tag=loctag+"End",
                                width=100,callback=timecode_box)
-        dpg.add_button(label="Enabled",tag=loctag+"Butt", callback=output_toggle)
+        dpg.add_button(label="Enabled",tag=loctag+"Butt", callback=enable_disable_toggle)
         dpg.add_button(label="Delete",tag=loctag+"Remove",callback=lambda:dpg.delete_item(loctag))
         dpg.add_text(tag=loctag+"Error")
     Global.tag += 1
 
-def import_file(sender, app_data):
+def import_timecode_file(_sender, app_data):
     """Callback to parse and import a STC file"""
     # Reset status
     dpg.configure_item("runStatus",color=(255,255,255,255))
@@ -519,17 +517,15 @@ def import_file(sender, app_data):
         return
 
     for i in range(len(label_arr)):
-        add_sec(None, None, None, label_arr[i], time_start_arr[i], time_end_arr[i])
+        add_section(None, None, None, label_arr[i], time_start_arr[i], time_end_arr[i])
 
-def export_file():
+def export_timecode_file():
     """Handles exporting the file"""
     segments = dpg.get_item_children("timing")[1]
     with open(dpg.get_value("exportName")+".stc","w",encoding="UTF-8") as file:
         for segment in segments:
             segtag = dpg.get_item_alias(segment)
-            file.write("{lab}?{start}-{end}\n".format(lab=dpg.get_value(segtag+"Lab"),
-                                                    start=dpg.get_value(segtag+"Start"),
-                                                    end=dpg.get_value(segtag+"End")))
+            file.write(f"{dpg.get_value(segtag+'Lab')}?{dpg.get_value(segtag+'Start')}-{dpg.get_value(segtag+'End')}\n")
     dpg.delete_item("tcexportmodal")
 
 def export_file_window():
@@ -540,7 +536,7 @@ def export_file_window():
             dpg.add_text("Enter a file name:")
             dpg.add_input_text(label=".stc",tag="exportName",width=100)
         with dpg.group(horizontal=True):
-            dpg.add_button(label="Export",tag="exportFileButt",callback=export_file)
+            dpg.add_button(label="Export",tag="exportFileButt",callback=export_timecode_file)
             dpg.add_button(label="Cancel",callback=lambda:dpg.delete_item("tcexportmodal"))
 
     # Force next render frame so window shows up and size can be calculated
@@ -560,7 +556,7 @@ def toggle_all_segments():
     segments = dpg.get_item_children("timing")[1]
     for segment in segments:
         segtag = dpg.get_item_alias(segment)
-        output_toggle(segtag+"Butt")
+        enable_disable_toggle(segtag+"Butt")
 
 # Initalizing dpg
 dpg.create_context()
@@ -569,7 +565,7 @@ dpg.setup_dearpygui()
 
 # Creates file diag thats shows when you open the app
 with dpg.file_dialog(label="Select A Music File",tag="musicselect",file_count=1,height=400,width=600,
-                     modal=True,show=True,callback=music_select):
+                     modal=True,show=True,callback=music_file_selected):
     dpg.add_file_extension("Music (*.mp3 *.wav *.aac *.ogg *.flac){.mp3,.wav,.aac,.ogg,.flac}")
     dpg.add_file_extension(".mp3",color=(0,255,0,255),custom_text="[MP3]")
     dpg.add_file_extension(".wav",color=(0,255,0,255),custom_text="[WAV]")
@@ -580,7 +576,7 @@ with dpg.file_dialog(label="Select A Music File",tag="musicselect",file_count=1,
 
 # Import diag
 with dpg.file_dialog(label="Select A Sodium Timecode File",tag="fileselect",file_count=1,height=400,width=800,
-                     modal=True,show=False,callback=import_file):
+                     modal=True,show=False,callback=import_timecode_file):
     dpg.add_file_extension("Sodium Timecode (*.stc *.txt){.stc,.txt}")
     dpg.add_file_extension(".stc",color=(0,255,0,255),custom_text="[Timecode]")
     dpg.add_file_extension(".txt",color=(0,255,0,255),custom_text="[Timecode]")
@@ -599,13 +595,15 @@ with dpg.window(label="Sodium",tag="main",no_close=True):
         dpg.add_text(f"Sodium {Global.VERSION}")
     dpg.add_text("No File Loaded", tag="stat")
     dpg.add_text(tag="filelen")
+
+    # Job name box
     with dpg.group(horizontal=True):
         dpg.add_text("Job Name:")
         dpg.add_input_text(tag="JobName",width=400)
 
     # Segment area
     with dpg.group(tag="secAddGroup",horizontal=True,show=False):
-        dpg.add_button(label="Add Section",tag="secButtonAdd",callback=add_sec)
+        dpg.add_button(label="Add Section",tag="secButtonAdd",callback=add_section)
         dpg.add_button(label="Enable/Disable All Sections",callback=toggle_all_segments)
     with dpg.group(tag="timing"):
         pass
