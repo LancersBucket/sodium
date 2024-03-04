@@ -15,7 +15,7 @@ from mutagen.aac import AAC
 
 class Global:
     """Globalvar vars"""
-    VERSION = "v1.3.3"
+    VERSION = "v1.4.0"
     tag = 0
     numComplete = 0
     errors = 0

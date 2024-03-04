@@ -17,29 +17,19 @@ Sodium is designed to be a simple and easy program to cut music files into segme
    - Press Run to start cutting the audio segment
 
 ### Importing A Timecode File
-You can create a .stc (Sodium Timecode) file to import precreated segments. An .stc file has three parts to it, a segment label, the start time, and end time. There is one segment per line of the file. A "?" separates the label from the timecodes, and optionally have a "-" that separates the start and end time code, or just have a start code. In the event an end code is not present, the end code will be the start code of the next segment (or the file length for the last timecode).
-```
-[Label]?[Start]-[End]
-```
-An example file looks as follows:
-```
-Song 1?00:00:00.000-00:00:30.000
-Song 2?00:00:30-00:01:30
-Song 3?02:30.000
-Song 4?03:00-04:15
-```
-
-Alternatively, Sodium supports using youtube style timestamps in the following forms. The end timestamp for the segment will be generated from the start timestamp of the next segment, or the file length for the last segment. Using this format REQUIRES a V2 on the first line of the file.
+You can create a .stc (Sodium Timecode) file to import precreated segments. Sodium supports using youtube style timestamps in the following forms. You can optionally chose to provide the end timestamp in this format `[Start]-[End]`, examples are provided below. Otherwise, the end timestamp for the segment will be generated from the start timestamp of the next segment, or the file length for the last segment.
 ```
 [Start] [Label] 
 [Start] - [Label]
 [Start]: [Label]
+[Start]-[End] [Label]
+[Start]-[End]: [Label]
+[Start]-[End] - [Label]
 ```
 An example file looks as follows:
 ```
-V2
 0:00 Song 1
-0:30: Song 2
+0:30-1:00: Song 2
 1:30.567 - Song 3
 3:00 Song 4
 ```
