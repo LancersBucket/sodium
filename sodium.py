@@ -445,67 +445,47 @@ def import_timecode_file(_sender, app_data):
     error = False
     count = 1
 
-    # Mode 0: STC format; Mode 1: Youtube Format
-    mode = 0
     for line in open(file_path,"r",encoding="UTF-8").readlines():
-        if count == 1 and line.strip() == "V2":
-            mode = 1
-        break
+        text = line.strip().split(" ")
+        start_time = text.pop(0).rstrip(":")
+        end_time = ""
 
-    if mode == 0:
-        for line in open(file_path,"r",encoding="UTF-8").readlines():
-            if line.find("?") < 0:
-                error = f"Error on line {count} of {file}: Missing '?'"
-                break
-            if line.find("-") < 0:
-                error = f"Error on line {count} of {file}: Missing '-'"
-                break
+        if '-' in start_time:
+            try:
+                start_time, end_time = start_time.split("-")
+            except Exception:
+                error = f"Error in {file} on line {count}'s timecode: Malformed timecode."
 
-            label, timecodes = line.split("?")
-            time_start, time_end = timecodes.split("-")
+        valid_start = timecode_validate(start_time)
+        if valid_start is not True:
+            error = f"Error in {file} on line {count}'s start time: {valid_start}"
+            break
 
-            label = label.strip()
-            time_start = time_start.strip()
-            time_end = time_end.strip()
-
-            valid_start = timecode_validate(time_start)
-            valid_end = timecode_validate(time_end)
-
-            if valid_start is not True:
-                error = f"Error on line {count} of {file}: Start timecode {valid_start}"
-                break
+        if end_time != "":
+            valid_end = timecode_validate(end_time)
             if valid_end is not True:
-                error = f"Error on line {count} of {file}: End timecode {valid_end}"
+                error = f"Error in {file} on line {count}'s end time: {valid_end}"
                 break
+            time_end_arr.append(end_time)
+        else:
+            time_end_arr.append(-1)
 
-            label_arr.append(label)
-            time_start_arr.append(time_start)
-            time_end_arr.append(time_end)
-            count += 1
-    if mode == 1:
-        for line in open(file_path,"r",encoding="UTF-8").readlines():
-            text = line.strip().split(" ")
-            if line.find("V2") >= 0:
-                continue
-            timecode = text.pop(0).rstrip(":")
+        label = " ".join(text).lstrip(" -")
+        label_arr.append(label)
+        time_start_arr.append(start_time)
+        count += 1
 
-            lab = " ".join(text).strip().lstrip(" -")
+    if dpg.get_value("imp_Numbering"):
+        for i in range(len(label_arr)):
+            label_arr[i] = f"{i+1} " + label_arr[i]
 
-            valid_start = timecode_validate(timecode)
-
-            if valid_start is not True:
-                error = f"Error on line {count} of {file}: {valid_start}"
-                break
-
-            label_arr.append(lab)
-            time_start_arr.append(timecode)
-            count += 1
-
-        if dpg.get_value("imp_Numbering"):
-            for i in range(len(label_arr)):
-                label_arr[i] = f"{i+1} " + label_arr[i]
-
-        for i in range(len(time_start_arr)):
+    for i in range(len(time_start_arr)):
+        if time_end_arr[i] == -1:
+            try:
+                time_end_arr[i] = time_start_arr[i+1]
+            except IndexError:
+                time_end_arr.append(FD.timecodeLength)
+        else:
             try:
                 time_end_arr.append(time_start_arr[i+1])
             except IndexError:
@@ -595,6 +575,8 @@ with dpg.window(label="Sodium",tag="main",no_close=True):
         dpg.add_text(f"Sodium {Global.VERSION}")
     dpg.add_text("No File Loaded", tag="stat")
     dpg.add_text(tag="filelen")
+
+    dpg.add_separator()
 
     # Job name box
     with dpg.group(horizontal=True):
