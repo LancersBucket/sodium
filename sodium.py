@@ -33,7 +33,6 @@ class FD:
 
 def timecode_parser(timecode: str, retvalid: bool = True) -> tuple[str]:
     """Parses timecode into h, m, s, and ms, optionally return if parsed timecode is valid"""
-    valid = timecode_validate(timecode)
     has_ms = False
     tc = timecode
     h = "0"
@@ -56,6 +55,7 @@ def timecode_parser(timecode: str, retvalid: bool = True) -> tuple[str]:
         h, m, s = tc.split(":")
 
     if retvalid:
+        valid = timecode_validate(timecode)
         return h, m, s, ms, valid
     return h, m, s, ms
 
@@ -255,7 +255,8 @@ def run_cut() -> None:
     # String formatting for final status, and resets counters
     seg_str = "segment" if Global.numComplete == 1 else "segements"
     err_str = "error" if Global.errors == 1 else "errors"
-    output = f"Completed {Global.numComplete} {seg_str} with {Global.errors} {err_str}."
+
+    output = f"Completed {Global.numComplete} {seg_str} with {Global.errors} {err_str}.\nOutput folder: {outputdir}"
     dpg.set_value("runStatus", output)
     Global.numComplete = 0
     Global.errors = 0
@@ -350,8 +351,6 @@ def timecode_box(sender, user_data):
         error_text = sender.split("End")[0]
         err_cause = "End"
 
-    # Gets error text, if any
-    valid = timecode_validate(user_data)
     h, m, s, ms, valid = timecode_parser(user_data)
 
     # Get other box input and check if it is better or worse you know what I mean
