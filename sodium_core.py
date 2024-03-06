@@ -3,7 +3,10 @@ from datetime import timedelta
 from re import compile as regex_compile
 
 def timecode_parser(timecode: str, retvalid: bool = True) -> tuple[str]:
-    """Parses timecode into h, m, s, and ms, optionally return if parsed timecode is valid"""
+    """Parses timecode into h, m, s, and ms, optionally return if parsed timecode is valid
+        \ntimecode (string): Input timecode (in timecode format)
+        \nretvalid (bool) {optional}: Return if timecode is valid. Default is True.
+        \nReturns timecode broken into parts (optionally if it is true or not): [h,m,s,ms,{valid}]"""
     has_ms = False
     tc = timecode
     h = "0"
@@ -31,7 +34,9 @@ def timecode_parser(timecode: str, retvalid: bool = True) -> tuple[str]:
     return h, m, s, ms
 
 def timecode_validate(timecode: str) -> str | bool:
-    """Validates timecode"""
+    """Validates timecode
+        \ntimecode (string): Timecode to validate
+        \nReturns an error as a string or True"""
     has_ms = False
     tc = timecode
     h = ""
