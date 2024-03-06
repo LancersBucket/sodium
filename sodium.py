@@ -224,6 +224,11 @@ def run_cut() -> None:
     dpg.configure_item("runStatus",color=(255,255,255,255))
     dpg.set_value("runStatus",f"Running... ({Global.numComplete+Global.errors}/{len(segments)})")
     dpg.show_item("load")
+
+    outputdir = os.path.join(FD.folderPath,dpg.get_value("JobName"))
+    if not os.path.isdir(outputdir):
+        os.mkdir(outputdir)
+
     # Reset segment label color to white
     for segment in segments:
         dpg.configure_item(dpg.get_item_alias(segment)+"colLab",color=(255,255,255,255))
@@ -239,9 +244,6 @@ def run_cut() -> None:
             continue
 
         # Run ffmpeg asyncronously and make the output folder if needed
-        outputdir = os.path.join(FD.folderPath,dpg.get_value("JobName"))
-        if not os.path.isdir(outputdir):
-            os.mkdir(outputdir)
         asyncio.run(ffmpeg_cut(FD.filePath,
                                outname=(os.path.join(outputdir,dpg.get_value(segtag+"Lab"))),
                                caller=segtag,ext=FD.fileExt,start=dpg.get_value(segtag+"Start"),
