@@ -310,8 +310,8 @@ def add_section(_sender, _app_data, _user_data, label: str = None, start: str = 
         dpg.add_text(tag=loctag+"Error")
     Global.tag += 1
 
-def import_timecode_file(_sender, app_data):
-    """Callback to parse and import a STC file"""
+def import_STC(_sender, app_data):
+    """Callback to import an STC file"""
     # Reset status
     dpg.configure_item("runStatus",color=(255,255,255,255))
     dpg.set_value("runStatus","")
@@ -323,63 +323,16 @@ def import_timecode_file(_sender, app_data):
 
     file, file_path = sudo_keyvalue(app_data["selections"])
 
-    label_arr = []
-    time_start_arr = []
-    time_end_arr = []
-
-    error = False
-    count = 1
-
-    for line in open(file_path,"r",encoding="UTF-8").readlines():
-        text = line.strip().split(" ")
-        start_time = text.pop(0).rstrip(":")
-        end_time = ""
-
-        if '-' in start_time:
-            try:
-                start_time, end_time = start_time.split("-")
-            except Exception:
-                error = f"Error in {file} on line {count}'s timecode: Malformed timecode."
-
-        valid_start = SC.timecode_validate(start_time)
-        if valid_start is not True:
-            error = f"Error in {file} on line {count}'s start time: {valid_start}"
-            break
-
-        if end_time != "":
-            valid_end = SC.timecode_validate(end_time)
-            if valid_end is not True:
-                error = f"Error in {file} on line {count}'s end time: {valid_end}"
-                break
-            time_end_arr.append(end_time)
-        else:
-            time_end_arr.append(-1)
-
-        label = " ".join(text).lstrip(" -")
-        label_arr.append(label)
-        time_start_arr.append(start_time)
-        count += 1
-
-    if dpg.get_value("imp_Numbering"):
-        for i in range(len(label_arr)):
-            label_arr[i] = f"{i+1} " + label_arr[i]
-
-    for i in range(len(time_start_arr)):
-        if time_end_arr[i] == -1:
-            try:
-                time_end_arr[i] = time_start_arr[i+1]
-            except IndexError:
-                time_end_arr.append(FD.timecodeLength)
-        else:
-            try:
-                time_end_arr.append(time_start_arr[i+1])
-            except IndexError:
-                time_end_arr.append(FD.timecodeLength)
+    label_arr, time_start_arr, time_end_arr, error = SC.process_timecode_file(file_path, file, FD.timecodeLength)
 
     if error is not False:
         dpg.configure_item("runStatus",color=(255,0,0,255))
         dpg.set_value("runStatus", error)
         return
+
+    if dpg.get_value("imp_Numbering"):
+        for i in range(len(label_arr)):
+            label_arr[i] = f"{i+1} " + label_arr[i]
 
     for i in range(len(label_arr)):
         add_section(None, None, None, label_arr[i], time_start_arr[i], time_end_arr[i])
@@ -441,7 +394,7 @@ with dpg.file_dialog(label="Select A Music File",tag="musicselect",file_count=1,
 
 # Import diag
 with dpg.file_dialog(label="Select A Sodium Timecode File",tag="fileselect",file_count=1,height=400,width=800,
-                     modal=True,show=False,callback=import_timecode_file):
+                     modal=True,show=False,callback=import_STC):
     dpg.add_file_extension("Sodium Timecode (*.stc *.txt){.stc,.txt}")
     dpg.add_file_extension(".stc",color=(0,255,0,255),custom_text="[Timecode]")
     dpg.add_file_extension(".txt",color=(0,255,0,255),custom_text="[Timecode]")

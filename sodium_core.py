@@ -114,3 +114,56 @@ def timecode_compare(time1: tuple[int], time2: tuple[int]) -> int:
     if ms1<ms2:
         return -1
     return 0
+
+def process_timecode_file(file_path: str, file_name: str, file_length: str) -> tuple[list[str],list[str],list[str],bool|str]:
+    """Parse an STC file"""
+    label_arr = []
+    time_start_arr = []
+    time_end_arr = []
+
+    error = False
+    count = 1
+
+    for line in open(file_path,"r",encoding="UTF-8").readlines():
+        text = line.strip().split(" ")
+        start_time = text.pop(0).rstrip(":")
+        end_time = ""
+
+        if '-' in start_time:
+            try:
+                start_time, end_time = start_time.split("-")
+            except Exception:
+                error = f"Error in {file_name} on line {count}'s timecode: Malformed timecode."
+
+        valid_start = timecode_validate(start_time)
+        if valid_start is not True:
+            error = f"Error in {file_name} on line {count}'s start time: {valid_start}"
+            break
+
+        if end_time != "":
+            valid_end = timecode_validate(end_time)
+            if valid_end is not True:
+                error = f"Error in {file_name} on line {count}'s end time: {valid_end}"
+                break
+            time_end_arr.append(end_time)
+        else:
+            time_end_arr.append(-1)
+
+        label = " ".join(text).lstrip(" -")
+        label_arr.append(label)
+        time_start_arr.append(start_time)
+        count += 1
+
+    for i in range(len(time_start_arr)):
+        if time_end_arr[i] == -1:
+            try:
+                time_end_arr[i] = time_start_arr[i+1]
+            except IndexError:
+                time_end_arr.append(file_length)
+        else:
+            try:
+                time_end_arr.append(time_start_arr[i+1])
+            except IndexError:
+                time_end_arr.append(file_length)
+
+    return label_arr, time_start_arr, time_end_arr, error
