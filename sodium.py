@@ -1,8 +1,6 @@
 """Module Imports"""
 import os
-from re import compile as regex_compile
 from sys import exit as sys_exit
-from datetime import timedelta
 import asyncio
 import dearpygui.dearpygui as dpg
 from ffmpeg import Progress
@@ -12,6 +10,7 @@ from mutagen.wave import WAVE
 from mutagen.flac import FLAC
 from mutagen.mp3 import MP3
 from mutagen.aac import AAC
+import sodium_core as SC
 
 class Global:
     """Globalvar vars"""
@@ -30,119 +29,6 @@ class FD:
     # Hours, Minutes, Seconds, MS
     parsedTimecode = ["","","",""]
     fileExt = ""
-
-def timecode_parser(timecode: str, retvalid: bool = True) -> tuple[str]:
-    """Parses timecode into h, m, s, and ms, optionally return if parsed timecode is valid"""
-    has_ms = False
-    tc = timecode
-    h = "0"
-    m = "0"
-    s = "0"
-    ms = "0"
-
-    # If a timecode has a . split timecode into everything else and the ms
-    count_ms = timecode.count(".")
-    if count_ms == 1:
-        has_ms = True
-    if has_ms:
-        tc, ms = timecode.split(".")
-
-    # Split the timecode into h, m, and s
-    count_split = tc.count(":")
-    if count_split == 1:
-        m, s = tc.split(":")
-    elif count_split == 2:
-        h, m, s = tc.split(":")
-
-    if retvalid:
-        valid = timecode_validate(timecode)
-        return h, m, s, ms, valid
-    return h, m, s, ms
-
-def timecode_validate(timecode: str) -> str | bool:
-    """Validates timecode"""
-    has_ms = False
-    tc = timecode
-    h = ""
-    m = ""
-    s = ""
-    ms = ""
-
-    regex = regex_compile("^[0-9:.]+$")
-    if not regex.match(timecode):
-        return "Timecode can only contain 0-9, :, and ."
-
-    # Counts number of .
-    count_ms = timecode.count(".")
-    # If it is one, then there are ms, if it is >1, then invalid
-    if count_ms == 1:
-        has_ms = True
-    if count_ms > 1:
-        return "Multiple . detected"
-
-    # If it has ms, put the timecode without ms into tc
-    if has_ms:
-        tc, ms = timecode.split(".")
-        # If # of digits in ms >3, invalid
-        if len(ms) > 3:
-            return "Milliseconds greater than 3 digits"
-        if len(ms) == 0:
-            return "Specified milliseconds but none provided"
-
-    # Count number of : in tc
-    count_split = tc.count(":")
-
-    # If 0 or more than 2, invalid
-    if (count_split == 0) or (count_split > 2):
-        return "Format: [HH:]MM:SS.mmm"
-
-    # If 1, then it only has minutes and second
-    if count_split == 1:
-        m, s = tc.split(":")
-    # If it is 2, then it has hr, min, and sec
-    elif count_split == 2:
-        h, m, s = tc.split(":")
-
-    if (len(h) > 2) or (len(m) < 1) or (len(m) > 2) or (not len(s) == 2):
-        return "Format: [HH:]MM:SS[.mmm]"
-
-    if int(m) >= 60:
-        return "Minutes greater than 59"
-    if int(s) >= 60:
-        return "Seconds greater than 59"
-
-    return True
-
-def timecode_calculate(len_seconds: float) -> str:
-    """Calculates timecode from given length in seconds"""
-    return str(timedelta(seconds=len_seconds)).split("000",maxsplit=1)[0]
-
-def timecode_compare(time1: tuple[int], time2: tuple[int]) -> int:
-    """1 for time1 being larger than time2, 0 if they are the same, -1 if time2 is larger than time1"""
-    h1, m1, s1, ms1 = time1
-    h2, m2, s2, ms2 = time2
-
-    # Compare h1 and h2, if they are the same fall through to next check
-    if h1>h2:
-        return 1
-    if h1<h2:
-        return -1
-    # Compare m1 and m2, if they are the same fall through to next check
-    if m1>m2:
-        return 1
-    if m1<m2:
-        return -1
-    # Compare s1 and s2, if they are the same fall through to next check
-    if s1>s2:
-        return 1
-    if s1<s2:
-        return -1
-    # Compare ms1 and ms2, if they are the same return 0
-    if ms1>ms2:
-        return 1
-    if ms1<ms2:
-        return -1
-    return 0
 
 async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end="") -> None:
     """Main ffmpeg function to segment a given file"""
@@ -320,8 +206,8 @@ def music_file_selected(_sender, app_data):
         case "flac":
             file_length = FLAC(FD.filePath).info.length
     FD.filelengthS = round(file_length, 3)
-    FD.timecodeLength = timecode_calculate(FD.filelengthS)
-    FD.parsedTimecode = timecode_parser(FD.timecodeLength,retvalid=False)
+    FD.timecodeLength = SC.timecode_calculate(FD.filelengthS)
+    FD.parsedTimecode = SC.timecode_parser(FD.timecodeLength,retvalid=False)
 
     # Display filename, length, and show the buttons to use the program
     dpg.set_value("stat", "Currently loaded file: " + FD.file)
@@ -351,21 +237,21 @@ def timecode_box(sender, user_data):
         error_text = sender.split("End")[0]
         err_cause = "End"
 
-    h, m, s, ms, valid = timecode_parser(user_data)
+    h, m, s, ms, valid = SC.timecode_parser(user_data)
 
     # Get other box input and check if it is better or worse you know what I mean
     if err_cause == "Start":
-        h2, m2, s2, ms2, valid2 = timecode_parser(dpg.get_value(error_text+"End"))
+        h2, m2, s2, ms2, valid2 = SC.timecode_parser(dpg.get_value(error_text+"End"))
         if valid2 is True:
-            compared = timecode_compare((h,m,s,ms),(h2,m2,s2,ms2))
+            compared = SC.timecode_compare((h,m,s,ms),(h2,m2,s2,ms2))
             if compared == 1:
                 valid = "Start time is greater than end time"
             elif compared == 0:
                 valid = "Times cannot be the same"
     if err_cause == "End":
-        h2, m2, s2, ms2, valid2 = timecode_parser(dpg.get_value(error_text+"Start"))
+        h2, m2, s2, ms2, valid2 = SC.timecode_parser(dpg.get_value(error_text+"Start"))
         if valid2 is True:
-            compared = timecode_compare((h,m,s,ms),(h2,m2,s2,ms2))
+            compared = SC.timecode_compare((h,m,s,ms),(h2,m2,s2,ms2))
             if compared == -1:
                 valid = "Start time is greater than end time"
             elif compared == 0:
@@ -380,7 +266,7 @@ def timecode_box(sender, user_data):
         dpg.set_value(error_text+"Error",err_cause + " Error: " + valid)
 
     # Checks if timecode is larger than file length and shows a warning if so
-    if timecode_compare([h,m,s,ms], FD.parsedTimecode) == 1:
+    if SC.timecode_compare([h,m,s,ms], FD.parsedTimecode) == 1:
         dpg.configure_item(error_text+"Error",color=(255,165,0,255))
         dpg.set_value(error_text+"Error",f"{err_cause} Warning: Timecode larger than file length")
 
@@ -455,13 +341,13 @@ def import_timecode_file(_sender, app_data):
             except Exception:
                 error = f"Error in {file} on line {count}'s timecode: Malformed timecode."
 
-        valid_start = timecode_validate(start_time)
+        valid_start = SC.timecode_validate(start_time)
         if valid_start is not True:
             error = f"Error in {file} on line {count}'s start time: {valid_start}"
             break
 
         if end_time != "":
-            valid_end = timecode_validate(end_time)
+            valid_end = SC.timecode_validate(end_time)
             if valid_end is not True:
                 error = f"Error in {file} on line {count}'s end time: {valid_end}"
                 break
