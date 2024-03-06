@@ -83,15 +83,25 @@ def run_cut(file_path,file_name,file_length,sodium_file,jobname) -> None:
         print(error)
         return
 
+    # Run ffmpeg asyncronously and make the output folder if needed
+    file_ext = file_name.split(".")[len(file_name.split("."))-1]
+
+    if jobname == "":
+        outputdir = file_name.split(file_ext)[0]
+    else:
+        outputdir = jobname
+
+    if not os.path.isdir(outputdir):
+        os.mkdir(outputdir)
+    elif os.path.isdir(outputdir) and len(os.listdir(outputdir)) > 0:
+        warn = ""
+        while warn.lower() != "y":
+            warn = input("Warning: Output directory is not empty and may overwrite files. Continue [y/n]? ")
+            if warn.lower() == "n":
+                sys.exit()
+
     # Loop over each segment
     for i in range(len(label_arr)):
-        # Run ffmpeg asyncronously and make the output folder if needed
-        outputdir = jobname
-        if not os.path.isdir(outputdir):
-            os.mkdir(outputdir)
-
-        file_ext = file_name.split(".")[len(file_name.split("."))-1]
-
         asyncio.run(ffmpeg_cut(file_path,
                                outname=os.path.join(outputdir,label_arr[i]),
                                ext=file_ext,start=time_start_arr[i],
@@ -126,6 +136,10 @@ def main(argv):
             sodiumfile = arg
         elif opt in ("-j", "--jname"):
             jobname = arg
+
+    if inputfile == "" or sodiumfile == "":
+        print('sodium_cli.py -i <inputfile> -s <Sodium Timecode File> [-j <Job name>]')
+        sys.exit(2)
 
     run_cut(inputfile,inputfile,0,sodiumfile,jobname)
 
