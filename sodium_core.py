@@ -164,11 +164,11 @@ def process_timecode_file(file_path: str, file_name: str, file_length: str) -> t
             try:
                 time_end_arr[i] = time_start_arr[i+1]
             except IndexError:
-                time_end_arr.append(file_length)
+                time_end_arr[i] = file_length
         else:
             try:
                 time_end_arr.append(time_start_arr[i+1])
             except IndexError:
-                time_end_arr.append(file_length)
+                time_end_arr[i] = file_length
 
     return label_arr, time_start_arr, time_end_arr, error
