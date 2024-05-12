@@ -14,7 +14,7 @@ import sodium_core as SC
 
 class Global:
     """Globalvar vars"""
-    VERSION = "v1.4.0"
+    VERSION = "v1.4.1"
     tag = 0
     numComplete = 0
     errors = 0
