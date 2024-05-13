@@ -350,7 +350,7 @@ def export_timecode_file() -> None:
     with open(f"{dpg.get_value('exportName')}.stc","w",encoding="UTF-8") as file:
         for segment in segments:
             segtag = dpg.get_item_alias(segment)
-            file.write(f"{dpg.get_value(segtag+'Lab')}?{dpg.get_value(segtag+'Start')}-{dpg.get_value(segtag+'End')}\n")
+            file.write(f"{dpg.get_value(segtag+'Start')} {dpg.get_value(segtag+'Lab')}\n")
     dpg.delete_item("tcexportmodal")
 
 def export_file_window() -> None:
