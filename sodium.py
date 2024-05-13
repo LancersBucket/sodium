@@ -31,15 +31,19 @@ class FD:
     fileExt = ""
 
 class Color:
+    """Colors\n
+        General: WHITE, GREY\n
+        Status: OK (Green), WARN (Orange), ERR (Red)"""
     WHITE = (255,255,255,255)
-    OK = (0,255,0,255)
-    ERR = (255,0,0,255)
     GREY = (150,150,150,255)
+    OK = (0,255,0,255)
+    WARN = (255,165,0,255)
+    ERR = (255,0,0,255)
 
-async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end="") -> None:
+async def ffmpeg_cut(inp: str, outname: str, ext: str, caller: str, start="", end="") -> None:
     """Main ffmpeg function to segment a given file"""
-    dpg.configure_item(caller+"Error",color=Color.WHITE)
-    output_name = outname+"."+ext
+    dpg.configure_item(f"{caller}Error",color=Color.WHITE)
+    output_name = f"{outname}.{ext}"
 
     # If start or end is empty set up options to ignore it
     if start == "":
@@ -78,9 +82,9 @@ async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end
         print("stderr:", line)
         # Print any errors directly to the status line
         if line.find("[sw") == -1:
-            dpg.set_value(caller+"Error",line)
+            dpg.set_value(f"{caller}Error",line)
         if line.find("Press [q]") >= 0:
-            dpg.set_value(caller+"Error","Running...")
+            dpg.set_value(f"{caller}Error","Running...")
 
     @ffmpeg.on("progress")
     def on_progress(progress: Progress):
@@ -97,13 +101,13 @@ async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end
     # Try to execute ffmpeg, set the label to green, and remove the status text
     try:
         await ffmpeg.execute()
-        dpg.configure_item(caller+"colLab",color=Color.OK)
-        dpg.set_value(caller+"Error","")
+        dpg.configure_item(f"{caller}colLab",color=Color.OK)
+        dpg.set_value(f"{caller}Error","")
         Global.numComplete += 1
     # Otherwise set label to red, and error out
     except Exception as e:
-        dpg.configure_item(caller+"Error",color=Color.ERR)
-        dpg.configure_item(caller+"colLab",color=Color.ERR)
+        dpg.configure_item(f"{caller}Error",color=Color.ERR)
+        dpg.configure_item(f"{caller}colLab",color=Color.ERR)
         Global.errors += 1
         print(e)
 
@@ -123,23 +127,23 @@ def run_cut() -> None:
 
     # Reset segment label color to white
     for segment in segments:
-        dpg.configure_item(dpg.get_item_alias(segment)+"colLab",color=Color.WHITE)
+        dpg.configure_item(f"{dpg.get_item_alias(segment)}colLab",color=Color.WHITE)
     # Loop over each segment
     for segment in segments:
         # Get friendly name of segment
         segtag = dpg.get_item_alias(segment)
         # Set label to red as a default
-        dpg.configure_item(segtag+"colLab",color=Color.ERR)
+        dpg.configure_item(f"{segtag}colLab",color=Color.ERR)
         # If the segment is disabled, set label to grey color
-        if dpg.get_item_label(segtag+"Butt") == "Disabled":
-            dpg.configure_item(segtag+"colLab",color=Color.GREY)
+        if dpg.get_item_label(f"{segtag}Butt") == "Disabled":
+            dpg.configure_item(f"{segtag}colLab",color=Color.GREY)
             continue
 
         # Run ffmpeg asyncronously and make the output folder if needed
         asyncio.run(ffmpeg_cut(FD.filePath,
-                               outname=(os.path.join(outputdir,dpg.get_value(segtag+"Lab"))),
-                               caller=segtag,ext=FD.fileExt,start=dpg.get_value(segtag+"Start"),
-                               end=dpg.get_value(segtag+"End")))
+                               outname=(os.path.join(outputdir,dpg.get_value(f"{segtag}Lab"))),
+                               caller=segtag,ext=FD.fileExt,start=dpg.get_value(f"{segtag}Start"),
+                               end=dpg.get_value(f"{segtag}End")))
         dpg.set_value("runStatus",f"Running... ({Global.numComplete+Global.errors}/{len(segments)})")
     # Set final status to green
     dpg.configure_item("runStatus",color=Color.OK)
@@ -165,8 +169,8 @@ def music_file_selected(_sender, app_data):
     # Reset segment label color to white
     segments = dpg.get_item_children("timing")[1]
     for segment in segments:
-        dpg.configure_item(dpg.get_item_alias(segment)+"colLab",color=Color.WHITE)
-        dpg.delete_item(dpg.get_item_alias(segment)+"Error")
+        dpg.configure_item(f"{dpg.get_item_alias(segment)}colLab",color=Color.WHITE)
+        dpg.delete_item(f"{dpg.get_item_alias(segment)}Error")
 
     FD.file, FD.filePath = sudo_keyvalue(app_data["selections"])
 
@@ -174,14 +178,14 @@ def music_file_selected(_sender, app_data):
     splt = FD.filePath.split("\\")
     FD.folderPath = ""
     for i in range(len(splt)-1):
-        FD.folderPath += splt[i] + "\\"
+        FD.folderPath += f"{splt[i]}\\"
 
     # Get file extension
     splitfile = FD.file.split(".")
     FD.fileExt = splitfile[len(splitfile)-1]
 
     # Set the job name
-    jobname = splitfile[0]+"-split"
+    jobname = f"{splitfile[0]}-split"
     job_name_new = jobname
     inc = 0
     while os.path.isdir(os.path.join(FD.folderPath,job_name_new)):
@@ -218,6 +222,7 @@ def music_file_selected(_sender, app_data):
     dpg.show_item("importSTC")
     dpg.show_item("exportSTC")
 
+    # Misc items
     dpg.show_item("jobNameGroup")
     dpg.show_item("sep1")
     dpg.show_item("sep2")
@@ -226,7 +231,7 @@ def enable_disable_toggle(sender):
     """Toggles the label on the enable/disable segment button"""
     if dpg.get_item_label(sender) == "Enabled":
         dpg.set_item_label(sender,"Disabled")
-        dpg.set_value(sender.split("Butt")[0]+"Error","")
+        dpg.set_value(f"{sender.split('Butt')[0]}Error","")
     else:
         dpg.set_item_label(sender,"Enabled")
 
@@ -244,7 +249,7 @@ def timecode_box(sender, user_data):
 
     # Get other box input and check if it is better or worse you know what I mean
     if err_cause == "Start":
-        h2, m2, s2, ms2, valid2 = SC.timecode_parser(dpg.get_value(error_text+"End"))
+        h2, m2, s2, ms2, valid2 = SC.timecode_parser(dpg.get_value(f"{error_text}End"))
         if valid2 is True:
             compared = SC.timecode_compare((h,m,s,ms),(h2,m2,s2,ms2))
             if compared == 1:
@@ -252,7 +257,7 @@ def timecode_box(sender, user_data):
             elif compared == 0:
                 valid = "Times cannot be the same"
     if err_cause == "End":
-        h2, m2, s2, ms2, valid2 = SC.timecode_parser(dpg.get_value(error_text+"Start"))
+        h2, m2, s2, ms2, valid2 = SC.timecode_parser(dpg.get_value(f"{error_text}Start"))
         if valid2 is True:
             compared = SC.timecode_compare((h,m,s,ms),(h2,m2,s2,ms2))
             if compared == -1:
@@ -262,16 +267,16 @@ def timecode_box(sender, user_data):
 
     # Clears error box or shows error
     if valid is True:
-        dpg.configure_item(error_text+"Error",color=Color.WHITE)
-        dpg.set_value(error_text+"Error","")
+        dpg.configure_item(f"{error_text}Error",color=Color.WHITE)
+        dpg.set_value(f"{error_text}Error","")
     else:
-        dpg.configure_item(error_text+"Error",color=Color.ERR)
-        dpg.set_value(error_text+"Error",err_cause + " Error: " + valid)
+        dpg.configure_item(f"{error_text}Error",color=Color.ERR)
+        dpg.set_value(f"{error_text}Error", f"{err_cause} Error: {valid}")
 
     # Checks if timecode is larger than file length and shows a warning if so
     if SC.timecode_compare([h,m,s,ms], FD.parsedTimecode) == 1:
-        dpg.configure_item(error_text+"Error",color=(255,165,0,255))
-        dpg.set_value(error_text+"Error",f"{err_cause} Warning: Timecode larger than file length")
+        dpg.configure_item(f"{error_text}Error",color=Color.WARN)
+        dpg.set_value(f"{error_text}Error",f"{err_cause} Warning: Timecode larger than file length")
 
 def add_section(_sender, _app_data, _user_data, label: str = None, start: str = None, end: str = None) -> None:
     """Adds a section in the segment list"""
@@ -282,38 +287,38 @@ def add_section(_sender, _app_data, _user_data, label: str = None, start: str = 
     segments = dpg.get_item_children("timing")[1]
     last_segment = len(segments)-1
     try:
-        last_seg_end = dpg.get_value(dpg.get_item_alias(segments[last_segment])+"End")
+        last_seg_end = dpg.get_value(f"{dpg.get_item_alias(segments[last_segment])}End")
     except Exception:
         last_seg_end = "00:00:00.000"
     if last_seg_end == "" or last_seg_end is None:
         last_seg_end = "00:00:00.000"
 
     with dpg.group(parent="timing",horizontal=True,tag=loctag):
-        dpg.add_text("Label:",tag=loctag+"colLab")
+        dpg.add_text("Label:",tag=f"{loctag}colLab")
         if label is None:
-            dpg.add_input_text(default_value=f"{Global.tag} ",tag=loctag+"Lab",width=-450)
+            dpg.add_input_text(default_value=f"{Global.tag} ",tag=f"{loctag}Lab",width=-450)
         else:
-            dpg.add_input_text(default_value=label,tag=loctag+"Lab",width=-450)
+            dpg.add_input_text(default_value=label,tag=f"{loctag}Lab",width=-450)
         dpg.add_text("Start:")
         if start is None:
-            dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=last_seg_end,tag=loctag+"Start",
+            dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=last_seg_end,tag=f"{loctag}Start",
                                width=100,callback=timecode_box)
         else:
-            dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=start,tag=loctag+"Start",
+            dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=start,tag=f"{loctag}Start",
                                width=100,callback=timecode_box)
         dpg.add_text("End:")
         if end is None:
-            dpg.add_input_text(hint="HH:MM:SS.mmm",default_value="00:00:00.000",tag=loctag+"End",
+            dpg.add_input_text(hint="HH:MM:SS.mmm",default_value="00:00:00.000",tag=f"{loctag}End",
                                width=100,callback=timecode_box)
         else:
-            dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=end,tag=loctag+"End",
+            dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=end,tag=f"{loctag}End",
                                width=100,callback=timecode_box)
-        dpg.add_button(label="Enabled",tag=loctag+"Butt", callback=enable_disable_toggle)
-        dpg.add_button(label="Delete",tag=loctag+"Remove",callback=lambda:dpg.delete_item(loctag))
-        dpg.add_text(tag=loctag+"Error")
+        dpg.add_button(label="Enabled",tag=f"{loctag}Butt", callback=enable_disable_toggle)
+        dpg.add_button(label="Delete",tag=f"{loctag}Remove",callback=lambda:dpg.delete_item(loctag))
+        dpg.add_text(tag=f"{loctag}Error")
     Global.tag += 1
 
-def import_STC(_sender, app_data):
+def import_stc(_sender, app_data):
     """Callback to import an STC file"""
     # Reset status
     dpg.configure_item("runStatus",color=Color.WHITE)
@@ -334,16 +339,16 @@ def import_STC(_sender, app_data):
         return
 
     if dpg.get_value("imp_Numbering"):
-        for i in range(len(label_arr)):
+        for i, _ele in enumerate(label_arr):
             label_arr[i] = f"{i+1} " + label_arr[i]
 
-    for i in range(len(label_arr)):
+    for i, _ele in enumerate(label_arr):
         add_section(None, None, None, label_arr[i], time_start_arr[i], time_end_arr[i])
 
 def export_timecode_file():
     """Handles exporting the file"""
     segments = dpg.get_item_children("timing")[1]
-    with open(dpg.get_value("exportName")+".stc","w",encoding="UTF-8") as file:
+    with open(f"{dpg.get_value('exportName')}.stc","w",encoding="UTF-8") as file:
         for segment in segments:
             segtag = dpg.get_item_alias(segment)
             file.write(f"{dpg.get_value(segtag+'Lab')}?{dpg.get_value(segtag+'Start')}-{dpg.get_value(segtag+'End')}\n")
@@ -377,7 +382,7 @@ def toggle_all_segments():
     segments = dpg.get_item_children("timing")[1]
     for segment in segments:
         segtag = dpg.get_item_alias(segment)
-        enable_disable_toggle(segtag+"Butt")
+        enable_disable_toggle(f"{segtag}Butt")
 
 # Initalizing dpg
 dpg.create_context()
@@ -397,12 +402,12 @@ with dpg.file_dialog(label="Select A Music File",tag="musicselect",file_count=1,
 
 # Import diag
 with dpg.file_dialog(label="Select A Sodium Timecode File",tag="fileselect",file_count=1,height=400,width=800,
-                     modal=True,show=False,callback=import_STC):
+                     modal=True,show=False,callback=import_stc):
     dpg.add_file_extension("Sodium Timecode (*.stc *.txt){.stc,.txt}")
     dpg.add_file_extension(".stc",color=Color.OK,custom_text="[Timecode]")
     dpg.add_file_extension(".txt",color=Color.OK,custom_text="[Timecode]")
     dpg.add_file_extension("",color=(150, 150, 150, 255))
-    #with dpg.group(width=100):
+
     dpg.add_text("Import Options:")
     dpg.add_checkbox(label="Segment Numbering",tag="imp_Numbering")
 
