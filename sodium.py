@@ -14,7 +14,7 @@ import sodium_core as SC
 
 class Global:
     """Globalvar vars"""
-    VERSION = "v1.4.2-DEV"
+    VERSION = "Sodium v1.4.2-DEV"
     tag = 0
     numComplete = 0
     errors = 0
@@ -30,9 +30,15 @@ class FD:
     parsedTimecode = ["","","",""]
     fileExt = ""
 
+class Color:
+    WHITE = (255,255,255,255)
+    OK = (0,255,0,255)
+    ERR = (255,0,0,255)
+    GREY = (150,150,150,255)
+
 async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end="") -> None:
     """Main ffmpeg function to segment a given file"""
-    dpg.configure_item(caller+"Error",color=(255,255,255,255))
+    dpg.configure_item(caller+"Error",color=Color.WHITE)
     output_name = outname+"."+ext
 
     # If start or end is empty set up options to ignore it
@@ -91,13 +97,13 @@ async def ffmpeg_cut(inp: str, outname: str, ext: str, caller:str, start="", end
     # Try to execute ffmpeg, set the label to green, and remove the status text
     try:
         await ffmpeg.execute()
-        dpg.configure_item(caller+"colLab",color=(0,255,0,255))
+        dpg.configure_item(caller+"colLab",color=Color.OK)
         dpg.set_value(caller+"Error","")
         Global.numComplete += 1
     # Otherwise set label to red, and error out
     except Exception as e:
-        dpg.configure_item(caller+"Error",color=(255,0,0,255))
-        dpg.configure_item(caller+"colLab",color=(255,0,0,255))
+        dpg.configure_item(caller+"Error",color=Color.ERR)
+        dpg.configure_item(caller+"colLab",color=Color.ERR)
         Global.errors += 1
         print(e)
 
@@ -107,7 +113,7 @@ def run_cut() -> None:
     # Get segements internal id
     segments = dpg.get_item_children("timing")[1]
     # Set final status to white text
-    dpg.configure_item("runStatus",color=(255,255,255,255))
+    dpg.configure_item("runStatus",color=Color.WHITE)
     dpg.set_value("runStatus",f"Running... ({Global.numComplete+Global.errors}/{len(segments)})")
     dpg.show_item("load")
 
@@ -117,16 +123,16 @@ def run_cut() -> None:
 
     # Reset segment label color to white
     for segment in segments:
-        dpg.configure_item(dpg.get_item_alias(segment)+"colLab",color=(255,255,255,255))
+        dpg.configure_item(dpg.get_item_alias(segment)+"colLab",color=Color.WHITE)
     # Loop over each segment
     for segment in segments:
         # Get friendly name of segment
         segtag = dpg.get_item_alias(segment)
         # Set label to red as a default
-        dpg.configure_item(segtag+"colLab",color=(255,0,0,255))
+        dpg.configure_item(segtag+"colLab",color=Color.ERR)
         # If the segment is disabled, set label to grey color
         if dpg.get_item_label(segtag+"Butt") == "Disabled":
-            dpg.configure_item(segtag+"colLab",color=(150,150,150,255))
+            dpg.configure_item(segtag+"colLab",color=Color.GREY)
             continue
 
         # Run ffmpeg asyncronously and make the output folder if needed
@@ -136,7 +142,7 @@ def run_cut() -> None:
                                end=dpg.get_value(segtag+"End")))
         dpg.set_value("runStatus",f"Running... ({Global.numComplete+Global.errors}/{len(segments)})")
     # Set final status to green
-    dpg.configure_item("runStatus",color=(0,255,0,255))
+    dpg.configure_item("runStatus",color=Color.OK)
     dpg.hide_item("load")
     dpg.show_item("runButt")
 
@@ -169,7 +175,7 @@ def music_file_selected(_sender, app_data):
     # Reset segment label color to white
     segments = dpg.get_item_children("timing")[1]
     for segment in segments:
-        dpg.configure_item(dpg.get_item_alias(segment)+"colLab",color=(255,255,255,255))
+        dpg.configure_item(dpg.get_item_alias(segment)+"colLab",color=Color.WHITE)
         dpg.delete_item(dpg.get_item_alias(segment)+"Error")
 
     FD.file, FD.filePath = sudo_keyvalue(app_data["selections"])
@@ -213,7 +219,7 @@ def music_file_selected(_sender, app_data):
 
     # Display filename, length, and show the buttons to use the program
     dpg.set_value("stat", "Currently Loaded File: " + FD.filePath.replace("\\\\","/"))
-    dpg.configure_item("stat",color=(0,255,0,255))
+    dpg.configure_item("stat",color=Color.OK)
     dpg.set_value("filelen",f"File Length: {FD.timecodeLength} ({FD.filelengthS} seconds)")
     dpg.show_item("secAddGroup")
     dpg.show_item("runButt")
@@ -221,6 +227,10 @@ def music_file_selected(_sender, app_data):
     # Enable importing/exporting STC file buttons
     dpg.show_item("importSTC")
     dpg.show_item("exportSTC")
+
+    dpg.show_item("jobNameGroup")
+    dpg.show_item("sep1")
+    dpg.show_item("sep2")
 
 def enable_disable_toggle(sender):
     """Toggles the label on the enable/disable segment button"""
@@ -262,10 +272,10 @@ def timecode_box(sender, user_data):
 
     # Clears error box or shows error
     if valid is True:
-        dpg.configure_item(error_text+"Error",color=(255,255,255,255))
+        dpg.configure_item(error_text+"Error",color=Color.WHITE)
         dpg.set_value(error_text+"Error","")
     else:
-        dpg.configure_item(error_text+"Error",color=(255,0,0,255))
+        dpg.configure_item(error_text+"Error",color=Color.ERR)
         dpg.set_value(error_text+"Error",err_cause + " Error: " + valid)
 
     # Checks if timecode is larger than file length and shows a warning if so
@@ -316,7 +326,7 @@ def add_section(_sender, _app_data, _user_data, label: str = None, start: str = 
 def import_STC(_sender, app_data):
     """Callback to import an STC file"""
     # Reset status
-    dpg.configure_item("runStatus",color=(255,255,255,255))
+    dpg.configure_item("runStatus",color=Color.WHITE)
     dpg.set_value("runStatus","")
 
     # Purge all current segments
@@ -329,7 +339,7 @@ def import_STC(_sender, app_data):
     label_arr, time_start_arr, time_end_arr, error = SC.process_timecode_file(file_path, file, FD.timecodeLength)
 
     if error is not False:
-        dpg.configure_item("runStatus",color=(255,0,0,255))
+        dpg.configure_item("runStatus",color=Color.ERR)
         dpg.set_value("runStatus", error)
         return
 
@@ -381,26 +391,26 @@ def toggle_all_segments():
 
 # Initalizing dpg
 dpg.create_context()
-dpg.create_viewport(title=f"Sodium {Global.VERSION}", width=1000, height=600)
+dpg.create_viewport(title=Global.VERSION, width=1000, height=600)
 dpg.setup_dearpygui()
 
 # Creates file diag thats shows when you open the app
 with dpg.file_dialog(label="Select A Music File",tag="musicselect",file_count=1,height=400,width=600,
                      modal=True,show=True,callback=music_file_selected):
     dpg.add_file_extension("Music (*.mp3 *.wav *.aac *.ogg *.flac){.mp3,.wav,.aac,.ogg,.flac}")
-    dpg.add_file_extension(".mp3",color=(0,255,0,255),custom_text="[MP3]")
-    dpg.add_file_extension(".wav",color=(0,255,0,255),custom_text="[WAV]")
-    dpg.add_file_extension(".aac",color=(0,255,0,255),custom_text="[AAC]")
-    dpg.add_file_extension(".ogg",color=(0,255,0,255),custom_text="[OGG]")
-    dpg.add_file_extension(".flac",color=(0,255,0,255),custom_text="[FLAC]")
+    dpg.add_file_extension(".mp3",color=Color.OK,custom_text="[MP3]")
+    dpg.add_file_extension(".wav",color=Color.OK,custom_text="[WAV]")
+    dpg.add_file_extension(".aac",color=Color.OK,custom_text="[AAC]")
+    dpg.add_file_extension(".ogg",color=Color.OK,custom_text="[OGG]")
+    dpg.add_file_extension(".flac",color=Color.OK,custom_text="[FLAC]")
     dpg.add_file_extension("",color=(150, 150, 150, 255))
 
 # Import diag
 with dpg.file_dialog(label="Select A Sodium Timecode File",tag="fileselect",file_count=1,height=400,width=800,
                      modal=True,show=False,callback=import_STC):
     dpg.add_file_extension("Sodium Timecode (*.stc *.txt){.stc,.txt}")
-    dpg.add_file_extension(".stc",color=(0,255,0,255),custom_text="[Timecode]")
-    dpg.add_file_extension(".txt",color=(0,255,0,255),custom_text="[Timecode]")
+    dpg.add_file_extension(".stc",color=Color.OK,custom_text="[Timecode]")
+    dpg.add_file_extension(".txt",color=Color.OK,custom_text="[Timecode]")
     dpg.add_file_extension("",color=(150, 150, 150, 255))
     #with dpg.group(width=100):
     dpg.add_text("Import Options:")
@@ -413,14 +423,14 @@ with dpg.window(label="Sodium",tag="main",no_close=True):
         dpg.add_button(label="File Select",callback=lambda:dpg.show_item("musicselect"))
         dpg.add_button(label="Import Timecode",tag="importSTC",callback=lambda:dpg.show_item("fileselect"),show=False)
         dpg.add_button(label="Export Timecode",tag="exportSTC",callback=export_file_window,show=False)
-        dpg.add_text(f"Sodium {Global.VERSION}")
-    dpg.add_text("No File Loaded", tag="stat")
+        dpg.add_text(Global.VERSION)
+    dpg.add_text("No File Loaded", tag="stat",color=Color.ERR)
     dpg.add_text(tag="filelen")
 
-    dpg.add_separator()
+    dpg.add_separator(tag="sep1",show=False)
 
     # Job name box
-    with dpg.group(horizontal=True):
+    with dpg.group(tag="jobNameGroup",horizontal=True,show=False):
         dpg.add_text("Job Name:")
         dpg.add_input_text(tag="JobName",width=400)
 
@@ -432,6 +442,9 @@ with dpg.window(label="Sodium",tag="main",no_close=True):
     # Timing area
     with dpg.group(tag="timing"):
         pass
+
+    dpg.add_text()
+    dpg.add_separator(tag="sep2",show=False)
 
     # Run button and loading text
     dpg.add_button(label="Run",tag="runButt",callback=run_cut,show=False)
