@@ -120,7 +120,7 @@ def timecode_compare(time1: tuple[int], time2: tuple[int]) -> int:
         return -1
     return 0
 
-def process_timecode_file(file_path: str, file_name: str, file_length: str) -> tuple[list[str],list[str],list[str],bool|str]:
+def process_timecode_file(file_path: str, file_name: str, file_length: str) -> tuple[list[str], list[str], list[str], bool|str]:
     """Parse an STC file"""
     label_arr = []
     time_start_arr = []

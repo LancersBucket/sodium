@@ -1,4 +1,4 @@
-"""Sodium CLI Version"""
+"""Sodium CLI"""
 import asyncio
 import getopt
 import os
@@ -14,7 +14,7 @@ class Global:
 
 async def ffmpeg_cut(inp: str, outname: str, ext: str, start="", end="") -> None:
     """Main ffmpeg function to segment a given file"""
-    output_name = outname+"."+ext
+    output_name = f"{outname}.{ext}"
 
     # If start or end is empty set up options to ignore it
     if start == "":
@@ -94,24 +94,21 @@ def run_cut(file_path,file_name,file_length,sodium_file,jobname) -> None:
     if not os.path.isdir(outputdir):
         os.mkdir(outputdir)
     elif os.path.isdir(outputdir) and len(os.listdir(outputdir)) > 0:
-        warn = ""
-        while warn.lower() != "y":
-            warn = input("Warning: Output directory is not empty and may overwrite files. Continue [y/n]? ")
-            if warn.lower() == "n":
-                sys.exit()
+        warn = input(f"Warning: Output directory ({os.path.abspath(outputdir)}) is not empty and may overwrite files. Continue [y/N]? ")
+        if warn.lower() != "y":
+            print("Aborted.")
+            sys.exit()
 
     # Loop over each segment
-    for i in range(len(label_arr)):
-        asyncio.run(ffmpeg_cut(file_path,
-                               outname=os.path.join(outputdir,label_arr[i]),
-                               ext=file_ext,start=time_start_arr[i],
-                               end=time_end_arr[i]))
+    for i, ele in enumerate(label_arr):
+        asyncio.run(ffmpeg_cut(file_path, outname=os.path.join(outputdir, ele), ext=file_ext,
+                               start=time_start_arr[i], end=time_end_arr[i]))
 
     # String formatting for final status, and resets counters
     seg_str = "segment" if Global.numComplete == 1 else "segements"
     err_str = "error" if Global.errors == 1 else "errors"
 
-    output = f"Completed {Global.numComplete} {seg_str} with {Global.errors} {err_str}.\nOutput folder: {outputdir}"
+    output = f"\nCompleted {Global.numComplete} {seg_str} with {Global.errors} {err_str}.\nOutput folder: {os.path.abspath(outputdir)}"
     print(output)
     Global.numComplete = 0
     Global.errors = 0

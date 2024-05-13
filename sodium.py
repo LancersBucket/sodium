@@ -1,7 +1,6 @@
-"""Module Imports"""
-import os
+"""Sodium GUI"""
+import os, asyncio
 from sys import exit as sys_exit
-import asyncio
 import dearpygui.dearpygui as dpg
 from ffmpeg import Progress
 from ffmpeg.asyncio import FFmpeg
@@ -164,7 +163,7 @@ def sudo_keyvalue(dat: dict) -> tuple[str]:
     key, value = next(iter(dat.items()), (None, None))
     return key, value
 
-def music_file_selected(_sender, app_data):
+def music_file_selected(_sender, app_data) -> None:
     """Music file selecter callback"""
     # Reset segment label color to white
     segments = dpg.get_item_children("timing")[1]
@@ -227,7 +226,7 @@ def music_file_selected(_sender, app_data):
     dpg.show_item("sep1")
     dpg.show_item("sep2")
 
-def enable_disable_toggle(sender):
+def enable_disable_toggle(sender) -> None:
     """Toggles the label on the enable/disable segment button"""
     if dpg.get_item_label(sender) == "Enabled":
         dpg.set_item_label(sender,"Disabled")
@@ -235,7 +234,7 @@ def enable_disable_toggle(sender):
     else:
         dpg.set_item_label(sender,"Enabled")
 
-def timecode_box(sender, user_data):
+def timecode_box(sender, user_data) -> None:
     """Callback to handle and display errors with timecode input"""
     # Checks if Start or End timecode box called it
     if sender.find("Start") > -1:
@@ -318,7 +317,7 @@ def add_section(_sender, _app_data, _user_data, label: str = None, start: str = 
         dpg.add_text(tag=f"{loctag}Error")
     Global.tag += 1
 
-def import_stc(_sender, app_data):
+def import_stc(_sender, app_data) -> None:
     """Callback to import an STC file"""
     # Reset status
     dpg.configure_item("runStatus",color=Color.WHITE)
@@ -339,13 +338,13 @@ def import_stc(_sender, app_data):
         return
 
     if dpg.get_value("imp_Numbering"):
-        for i, _ele in enumerate(label_arr):
-            label_arr[i] = f"{i+1} " + label_arr[i]
+        for i, ele in enumerate(label_arr):
+            label_arr[i] = f"{i+1} {ele}"
 
-    for i, _ele in enumerate(label_arr):
-        add_section(None, None, None, label_arr[i], time_start_arr[i], time_end_arr[i])
+    for i, ele in enumerate(label_arr):
+        add_section(None, None, None, ele, time_start_arr[i], time_end_arr[i])
 
-def export_timecode_file():
+def export_timecode_file() -> None:
     """Handles exporting the file"""
     segments = dpg.get_item_children("timing")[1]
     with open(f"{dpg.get_value('exportName')}.stc","w",encoding="UTF-8") as file:
@@ -354,7 +353,7 @@ def export_timecode_file():
             file.write(f"{dpg.get_value(segtag+'Lab')}?{dpg.get_value(segtag+'Start')}-{dpg.get_value(segtag+'End')}\n")
     dpg.delete_item("tcexportmodal")
 
-def export_file_window():
+def export_file_window() -> None:
     """Creates the export file window"""
     with dpg.window(label="Export Timecodes",tag="tcexportmodal",
                     no_move=True,no_collapse=True,no_close=True,modal=True,no_resize=True,height=10):
