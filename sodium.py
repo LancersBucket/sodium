@@ -14,7 +14,7 @@ import sodium_core as SC
 
 class Global:
     """Globalvar vars"""
-    VERSION = "v1.4.1"
+    VERSION = "v1.4.2-DEV"
     tag = 0
     numComplete = 0
     errors = 0
@@ -212,8 +212,9 @@ def music_file_selected(_sender, app_data):
     FD.parsedTimecode = SC.timecode_parser(FD.timecodeLength,retvalid=False)
 
     # Display filename, length, and show the buttons to use the program
-    dpg.set_value("stat", "Currently loaded file: " + FD.file)
-    dpg.set_value("filelen",f"File length: {FD.timecodeLength} ({FD.filelengthS} seconds)")
+    dpg.set_value("stat", "Currently Loaded File: " + FD.filePath.replace("\\\\","/"))
+    dpg.configure_item("stat",color=(0,255,0,255))
+    dpg.set_value("filelen",f"File Length: {FD.timecodeLength} ({FD.filelengthS} seconds)")
     dpg.show_item("secAddGroup")
     dpg.show_item("runButt")
 
@@ -290,9 +291,9 @@ def add_section(_sender, _app_data, _user_data, label: str = None, start: str = 
     with dpg.group(parent="timing",horizontal=True,tag=loctag):
         dpg.add_text("Label:",tag=loctag+"colLab")
         if label is None:
-            dpg.add_input_text(default_value=f"{Global.tag} ",tag=loctag+"Lab",width=150)
+            dpg.add_input_text(default_value=f"{Global.tag} ",tag=loctag+"Lab",width=-450)
         else:
-            dpg.add_input_text(default_value=label,tag=loctag+"Lab",width=150)
+            dpg.add_input_text(default_value=label,tag=loctag+"Lab",width=-450)
         dpg.add_text("Start:")
         if start is None:
             dpg.add_input_text(hint="HH:MM:SS.mmm",default_value=last_seg_end,tag=loctag+"Start",
@@ -427,6 +428,8 @@ with dpg.window(label="Sodium",tag="main",no_close=True):
     with dpg.group(tag="secAddGroup",horizontal=True,show=False):
         dpg.add_button(label="Add Section",tag="secButtonAdd",callback=add_section)
         dpg.add_button(label="Enable/Disable All Sections",callback=toggle_all_segments)
+
+    # Timing area
     with dpg.group(tag="timing"):
         pass
 
